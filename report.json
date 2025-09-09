@@ -1,0 +1,142 @@
+{
+  "summary": {
+    "issue_count": 15
+  },
+  "issues": [
+    {
+      "rule_id": "PY105",
+      "description": "Potential XSS vulnerability with mark_safe or Markup.",
+      "file_path": "vulnerable_app.py",
+      "line_number": 66,
+      "code": "return Markup(raw_html)",
+      "severity": "Severity.Medium",
+      "remediation": "Ensure that data passed to 'mark_safe' or 'Markup' is from a trusted source or has been properly sanitized."
+    },
+    {
+      "rule_id": "PY204",
+      "description": "Use of the 'pycrypto' library is discouraged due to known vulnerabilities.",
+      "file_path": "vulnerable_app.py",
+      "line_number": 76,
+      "code": "from Crypto.Cipher import AES",
+      "severity": "Severity.High",
+      "remediation": "Migrate from 'pycrypto' to a more secure and actively maintained library like 'pycryptodome'."
+    },
+    {
+      "rule_id": "PY302",
+      "description": "Use of 'yaml.load()' is insecure. Use 'yaml.safe_load()'.",
+      "file_path": "vulnerable_app.py",
+      "line_number": 82,
+      "code": "yaml.load(stream)",
+      "severity": "Severity.High",
+      "remediation": "Always use 'yaml.safe_load()' to prevent arbitrary code execution from malicious YAML."
+    },
+    {
+      "rule_id": "PY303",
+      "description": "XML parsing with 'xml.etree.ElementTree' is vulnerable to XML bombs.",
+      "file_path": "vulnerable_app.py",
+      "line_number": 86,
+      "code": "xml.etree.ElementTree.fromstring(xml_string)",
+      "severity": "Severity.High",
+      "remediation": "Use 'defusedxml.ElementTree' to parse untrusted XML data safely."
+    },
+    {
+      "rule_id": "PY304",
+      "description": "Insecure temporary file creation may lead to race conditions.",
+      "file_path": "vulnerable_app.py",
+      "line_number": 90,
+      "code": "tempfile.mktemp()",
+      "severity": "Severity.Medium",
+      "remediation": "Use 'tempfile.mkstemp()' instead of 'tempfile.mktemp()' for secure temporary file creation."
+    },
+    {
+      "rule_id": "G403",
+      "description": "Flask DEBUG mode is enabled.",
+      "file_path": "vulnerable_app.py",
+      "line_number": 111,
+      "code": "app.run(debug=True)",
+      "severity": "Severity.High",
+      "remediation": "Ensure app.debug is False or the DEBUG config variable is False in production."
+    },
+    {
+      "rule_id": "G101",
+      "description": "Hardcoded password or secret detected.",
+      "file_path": "vulnerable_app.py",
+      "line_number": 30,
+      "code": "api_key = \"SECRET_KEY_1234567890abcdef\"",
+      "severity": "Severity.High",
+      "remediation": "Store credentials in environment variables or a secrets management system."
+    },
+    {
+      "rule_id": "G102",
+      "description": "Hardcoded private key detected.",
+      "file_path": "vulnerable_app.py",
+      "line_number": 34,
+      "code": "-----BEGIN RSA PRIVATE KEY-----",
+      "severity": "Severity.Critical",
+      "remediation": "Load private keys from a secure, encrypted file or secrets manager."
+    },
+    {
+      "rule_id": "PY001",
+      "description": "Use of 'eval()' is highly dangerous.",
+      "file_path": "vulnerable_app.py",
+      "line_number": 41,
+      "code": "eval(untrusted_data)",
+      "severity": "Severity.High",
+      "remediation": "Avoid 'eval()'. Use safer alternatives like 'ast.literal_eval' for data parsing."
+    },
+    {
+      "rule_id": "PY002",
+      "description": "Use of 'pickle.loads' for deserialization can lead to remote code execution.",
+      "file_path": "vulnerable_app.py",
+      "line_number": 45,
+      "code": "pickle.loads(data)",
+      "severity": "Severity.High",
+      "remediation": "Use a safer serialization format like JSON if deserializing untrusted data."
+    },
+    {
+      "rule_id": "PY103",
+      "description": "Use of os.system is a command injection risk.",
+      "file_path": "vulnerable_app.py",
+      "line_number": 62,
+      "code": "os.system(cmd)",
+      "severity": "Severity.High",
+      "remediation": "Avoid 'os.system'. Use the 'subprocess' module with command and arguments as a list."
+    },
+    {
+      "rule_id": "PY201",
+      "description": "Use of weak hashing algorithm MD5.",
+      "file_path": "vulnerable_app.py",
+      "line_number": 70,
+      "code": "md5_hash = hashlib.md5(password.encode()).hexdigest()",
+      "severity": "Severity.Medium",
+      "remediation": "Use a stronger hashing algorithm like SHA-256 or a password-specific hashing function like bcrypt."
+    },
+    {
+      "rule_id": "PY202",
+      "description": "Use of broken hashing algorithm SHA1.",
+      "file_path": "vulnerable_app.py",
+      "line_number": 71,
+      "code": "sha1_hash = hashlib.sha1(password.encode()).hexdigest()",
+      "severity": "Severity.Medium",
+      "remediation": "Use a stronger hashing algorithm like SHA-256."
+    },
+    {
+      "rule_id": "G405",
+      "description": "Requests made without certificate verification.",
+      "file_path": "vulnerable_app.py",
+      "line_number": 96,
+      "code": "requests.get(\"https://example.com\", verify=False)",
+      "severity": "Severity.High",
+      "remediation": "Remove 'verify=False' from requests calls to prevent man-in-the-middle attacks."
+    },
+    {
+      "rule_id": "PY102",
+      "description": "Command Injection detected via Taint Analysis.",
+      "file_path": "vulnerable_app.py",
+      "line_number": 53,
+      "code": "subprocess.run(full_command, shell=True)",
+      "severity": "Severity.Critical",
+      "remediation": "User-controlled data reached a command execution function without sanitization. Use 'shlex.quote()' to escape arguments or avoid passing user input to shell commands entirely."
+    }
+  ]
+}
