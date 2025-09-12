@@ -1,9 +1,0 @@
-cargo:rustc-cfg=Py_3_6
-cargo:rustc-cfg=Py_3_7
-cargo:rustc-cfg=Py_3_8
-cargo:rustc-cfg=Py_3_9
-cargo:rustc-cfg=Py_3_10
-cargo:rustc-cfg=Py_3_11
-cargo:rustc-cfg=Py_3_12
-cargo:rustc-cfg=thread_local_const_init
-cargo:rustc-cfg=invalid_from_utf8_lint

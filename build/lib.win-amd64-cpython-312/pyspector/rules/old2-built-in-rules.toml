@@ -1,0 +1,2932 @@
+# PySpector Built-in Security Rules
+# This is a curated, high-quality ruleset focusing on high-impact vulnerabilities.
+
+# -------------------------------------------
+# SECTION: Taint Analysis Rules
+# -------------------------------------------
+
+[[taint_source]]
+id = "TS001"
+description = "Data from a web request is considered tainted."
+function_call = "request.get"
+taint_target = "return"
+
+[[taint_sink]]
+id = "SK001"
+vulnerability_id = "PY102" # This sink triggers the high-confidence Command Injection rule
+description = "Data is passed to a command execution function."
+function_call = "subprocess.run"
+vulnerable_parameter_index = 0
+
+[[taint_sanitizer]]
+id = "SN001"
+description = "Shell argument escaping sanitizes data for command execution."
+function_call = "shlex.quote"
+
+# -------------------------------------------
+# SECTION: Injection (OWASP A03:2021)
+# -------------------------------------------
+
+[[rule]]
+id = "PY102"
+description = "Command Injection detected via Taint Analysis."
+severity = "Critical"
+confidence = "High"
+remediation = "User-controlled data reached a command execution function without sanitization. Use 'shlex.quote()' to escape arguments or avoid passing user input to shell commands entirely."
+# NOTE: This rule has no 'pattern' or 'ast_match'. It is triggered ONLY by the taint engine.
+
+[[rule]]
+id = "PY001"
+description = "Use of 'eval()' is highly dangerous."
+severity = "High"
+remediation = "Avoid 'eval()'. Use safer alternatives like 'ast.literal_eval' for data parsing."
+ast_match = "Call(func.id=eval)"
+file_pattern = "\bmktemp\s+-u\b"][A-Za-z0-9/+=]{16,}[\'\"]"
+
+[[rule]]
+id = "PY103"
+description = "Use of os.system is a command injection risk."
+severity = "High"
+remediation = "Avoid 'os.system'. Use the 'subprocess' module with command and arguments as a list."
+ast_match = "Call(func.value.id=os, func.attr=system)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY101"
+description = "Potential SQL injection via string formatting in database query."
+severity = "Critical"
+confidence = "High"
+remediation = "Use parameterized queries (e.g., cursor.execute('SELECT * FROM users WHERE name = ?', (name,))) instead of string formatting."
+pattern = "\\.(execute|executemany)\\s*\\(\\s*f?[\"'].*SELECT.*(FROM|UPDATE|DELETE).*%s.*[\"']"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY104"
+description = "LDAP injection may be possible with string formatting."
+severity = "High"
+remediation = "Use a proper LDAP escaping library for any user-controlled data in LDAP queries."
+pattern = "\\.search_s\\s*\\(.*f[\"']"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY105"
+description = "Potential XSS vulnerability with mark_safe or Markup."
+severity = "Medium"
+remediation = "Ensure that data passed to 'mark_safe' or 'Markup' is from a trusted source or has been properly sanitized."
+pattern = "(mark_safe|Markup)\\s*\\("
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY106"
+description = "Use of subprocess.run with shell=True is a command injection risk."
+severity = "High"
+remediation = "Avoid shell=True with subprocess.run. Pass commands as a list instead of a string."
+ast_match = "Call(func.value.id=subprocess, func.attr=run)"
+file_pattern = "*.py"
+
+# -------------------------------------------
+# SECTION: Cryptographic Failures (OWASP A02:2021)
+# -------------------------------------------
+
+[[rule]]
+id = "PY201"
+description = "Use of weak hashing algorithm MD5."
+severity = "Medium"
+remediation = "Use a stronger hashing algorithm like SHA-256 or a password-specific hashing function like bcrypt."
+ast_match = "Call(func.value.id=hashlib, func.attr=md5)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY202"
+description = "Use of broken hashing algorithm SHA1."
+severity = "Medium"
+remediation = "Use a stronger hashing algorithm like SHA-256."
+ast_match = "Call(func.value.id=hashlib, func.attr=sha1)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY203"
+description = "Use of insecure SSL/TLS protocol version."
+severity = "High"
+remediation = "Use 'ssl.PROTOCOL_TLS' or higher. Avoid SSLv2, SSLv3, and TLSv1.0/1.1."
+pattern = "ssl\\.PROTOCOL_(SSLv2|SSLv3|TLSv1|TLSv1_1)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY204"
+description = "Use of the 'pycrypto' library is discouraged due to known vulnerabilities."
+severity = "High"
+remediation = "Migrate from 'pycrypto' to a more secure and actively maintained library like 'pycryptodome'."
+pattern = "from\\s+Crypto|import\\s+Crypto"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY205"
+description = "Use of PyNaCl with low-level functions can be insecure if misused."
+severity = "Low"
+confidence = "Low"
+remediation = "Prefer using high-level APIs like 'Box' and 'SecretBox' unless low-level functions are explicitly required and understood."
+pattern = "nacl\\.low_level"
+file_pattern = "*.py"
+
+# -------------------------------------------
+# SECTION: Insecure Deserialization & Design (OWASP A08:2021)
+# -------------------------------------------
+
+[[rule]]
+id = "PY002"
+description = "Use of 'pickle.loads' for deserialization can lead to remote code execution."
+severity = "High"
+remediation = "Use a safer serialization format like JSON if deserializing untrusted data."
+ast_match = "Call(func.value.id=pickle, func.attr=loads)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY301"
+description = "Use of 'pickle.load' for deserialization can lead to remote code execution."
+severity = "High"
+remediation = "Use a safer serialization format like JSON if deserializing untrusted data."
+ast_match = "Call(func.attr=load, func.value.id=pickle)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY302"
+description = "Use of 'yaml.load()' is insecure. Use 'yaml.safe_load()'."
+severity = "High"
+remediation = "Always use 'yaml.safe_load()' to prevent arbitrary code execution from malicious YAML."
+pattern = "^\\s*[^#]*yaml\\.load" # This regex ignores comment lines
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY303"
+description = "XML parsing with 'xml.etree.ElementTree' is vulnerable to XML bombs."
+severity = "High"
+remediation = "Use 'defusedxml.ElementTree' to parse untrusted XML data safely."
+pattern = "xml\\.etree\\.ElementTree\\.(parse|fromstring)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY304"
+description = "Insecure temporary file creation may lead to race conditions."
+severity = "Medium"
+remediation = "Use 'tempfile.mkstemp()' instead of 'tempfile.mktemp()' for secure temporary file creation."
+pattern = "tempfile\\.mktemp"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY305"
+description = "Use of exec() enables arbitrary code execution"
+severity = "Critical"
+ast_match = "Call(func.id=exec)"
+
+[[rule]]
+id = "PY306"  
+description = "Unsafe pickle.loads() can execute arbitrary code"
+severity = "High"
+ast_match = "Call(func.value.id=pickle, func.attr=loads)"
+
+# -------------------------------------------
+# SECTION: Security Misconfiguration (OWASP A05:2021)
+# -------------------------------------------
+
+[[rule]]
+id = "G401"
+description = "Flask app is running with the development server in a non-debug context."
+severity = "Medium"
+confidence = "Low"
+remediation = "Use a production-ready WSGI server like Gunicorn or uWSGI instead of 'app.run()'."
+pattern = "app\\.run\\(host=.*0\\.0\\.0\\.0"
+file_pattern = "*.py"
+
+[[rule]]
+id = "G402"
+description = "Django DEBUG mode is enabled in a settings file."
+severity = "High"
+remediation = "Ensure DEBUG is set to False in production settings."
+pattern = "^\\s*DEBUG\\s*=\\s*True"
+file_pattern = "*settings*.py"
+
+[[rule]]
+id = "G403"
+description = "Flask DEBUG mode is enabled."
+severity = "High"
+remediation = "Ensure app.debug is False or the DEBUG config variable is False in production."
+pattern = "app\\.run\\(.*debug=True"
+file_pattern = "*.py"
+
+[[rule]]
+id = "G404"
+description = "Django's CSRF protection appears to be disabled globally."
+severity = "Critical"
+remediation = "Ensure 'django.middleware.csrf.CsrfViewMiddleware' is active in your MIDDLEWARE setting."
+pattern = "#.*CsrfViewMiddleware" # Simple check for commented-out middleware
+file_pattern = "*settings*.py"
+
+[[rule]]
+id = "G405"
+description = "Requests made without certificate verification."
+severity = "High"
+remediation = "Remove 'verify=False' from requests calls to prevent man-in-the-middle attacks."
+ast_match = "Call(keywords.*.arg=verify, keywords.*.value.value=False)"
+file_pattern = "*.py"
+
+# -------------------------------------------
+# SECTION: Hardcoded Secrets (OWASP A07:2021)
+# -------------------------------------------
+
+[[rule]]
+id = "G101"
+description = "Hardcoded password or secret detected."
+severity = "High"
+confidence = "Medium"
+remediation = "Store credentials in environment variables or a secrets management system."
+pattern = "(?i)(password|secret|api_key|token|authkey|bearer|cred|credentials)\\s*[:=]\\s*[\"']\\w{8,}[\"']"
+file_pattern = "*.py"
+
+[[rule]]
+id = "G102"
+description = "Hardcoded private key detected."
+severity = "Critical"
+confidence = "High"
+remediation = "Load private keys from a secure, encrypted file or secrets manager."
+pattern = "-----BEGIN (RSA|EC|OPENSSH|PGP) PRIVATE KEY-----"
+
+[[rule]]
+id = "G103"
+description = "Use of a blank password for a user or service."
+severity = "High"
+remediation = "Ensure all users and service accounts have strong, non-empty passwords."
+pattern = "(?i)(password|passwd|pass)\\s*[:=]\\s*[\"']\\s*[\"']"
+file_pattern = "*.py"
+
+[[rule]]
+id = "G104"
+description = "JWT secret is hardcoded."
+severity = "Critical"
+remediation = "Load JWT secrets from environment variables or a secrets management system."
+pattern = "(?i)(jwt_secret|jwt_key)\\s*[:=]\\s*[\"'].+[\"']"
+file_pattern = "*.py"
+
+# -------------------------------------------
+# SECTION: IaC and Configuration File Security
+# -------------------------------------------
+
+[[rule]]
+id = "DKR001"
+description = "Password or secret found in Dockerfile ENV instruction."
+severity = "High"
+remediation = "Use build-time arguments (ARG) with the --secret flag or a secrets management tool."
+pattern = "(?i)ENV\\s+(PASS|PASSWORD|SECRET|TOKEN|API_KEY)\\s+"
+file_pattern = "Dockerfile"
+
+[[rule]]
+id = "DKR002"
+description = "Use of 'latest' tag for base image is not recommended for production."
+severity = "Low"
+remediation = "Pin base images to a specific version digest for reproducible and secure builds."
+pattern = "FROM\\s+\\w+:latest"
+file_pattern = "Dockerfile"
+
+[[rule]]
+id = "DKR003"
+description = "Exposing Docker daemon socket inside a container is a security risk."
+severity = "Critical"
+remediation = "Avoid mounting '/var/run/docker.sock' into containers."
+pattern = "/var/run/docker\\.sock"
+file_pattern = "docker-compose*.y*ml"
+
+[[rule]]
+id = "K8S001"
+description = "Kubernetes container running in privileged mode."
+severity = "Critical"
+remediation = "Set 'securityContext.privileged' to 'false' or remove it."
+pattern = "privileged:\\s*true"
+file_pattern = "*.y*ml"
+
+[[rule]]
+id = "K8S002"
+description = "Kubernetes container allows privilege escalation."
+severity = "High"
+remediation = "Explicitly set 'securityContext.allowPrivilegeEscalation' to 'false'."
+pattern = "allowPrivilegeEscalation:\\s*true"
+file_pattern = "*.y*ml"
+
+[[rule]]
+id = "TF001"
+description = "Terraform AWS S3 bucket is publicly readable."
+severity = "Critical"
+remediation = "Set the 'acl' property of 'aws_s3_bucket' to 'private', not 'public-read' or 'public-read-write'."
+pattern = "acl\\s*=\\s*\"(public-read|public-read-write)\""
+file_pattern = "*.tf"
+
+[[rule]]
+id = "CFG001"
+description = "AWS credentials detected in configuration file."
+severity = "Critical"
+remediation = "Use IAM roles or environment variables for AWS credentials."
+pattern = "(?i)(aws_access_key_id|aws_secret_access_key)\\s*=\\s*[A-Za-z0-9/+=]{20,}"
+file_pattern = "*.ini"
+
+# -------------------------------------------
+# SECTION: GENERIC AND ADVANCED RULES (about 300smth rules)
+# -------------------------------------------
+
+[[rule]]
+id = "PY500"
+description = "Use of Python 'exec' detected — dynamic code execution risk (RCE potential)."
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+ast_match = "Call(func.attr=exec, func.value.id=builtins)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "IAC501"
+description = "Suspicious pattern detected by advanced context-aware rule IAC501; review source for potential security issues and adopt secure coding practices."
+severity = "Medium"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "\\bexec\\b\\s*\\("
+file_pattern = "*.py"
+
+[[rule]]
+id = "SEC502"
+description = "Use of subprocess with shell=True — shell injection risk when arguments include user input."
+severity = "Medium"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+ast_match = "Call(func.value.id=subprocess, func.attr=Popen, keywords.*.arg=shell, keywords.*.value.value=True)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY503"
+description = "Use of subprocess with shell=True — shell injection risk when arguments include user input."
+severity = "Low"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "subprocess\\.(Popen|call)\\(.*shell\\s*=\\s*True"
+file_pattern = "*.py"
+
+[[rule]]
+id = "G504"
+description = "Pattern-based detection rule #504."
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "open\\s*\\(\\s*['\\\"]/etc/passwd"
+file_pattern = "*.sh"
+
+[[rule]]
+id = "PY505"
+description = "Pattern-based detection rule #505."
+severity = "High"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+ast_match = "Attribute(attr=read, value.name=open)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "JS506"
+description = "Pattern-based detection rule #506."
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "eval\\s*\\("
+file_pattern = "*.js"
+
+[[rule]]
+id = "PY507"
+description = "Pattern-based detection rule #507."
+severity = "Critical"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "\\.exec\\s*\\("
+file_pattern = "*.py"
+
+[[rule]]
+id = "G508"
+description = "Use of subprocess with shell=True — shell injection risk when arguments include user input. (cleaned variant 1 scoped to *.py)"
+severity = "Medium"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "subprocess\\.(Popen|call)\\(.*shell\\s*=\\s*True"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY509"
+description = "Pattern-based detection rule #509."
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "new\\s+Function\\s*\\("
+file_pattern = "*.js"
+
+[[rule]]
+id = "DKR510"
+description = "Pattern-based detection rule #510."
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "aws_access_key_id\\s*[:=]\\s*['\\\"][A-Za-z0-9/+=]{16,}"
+file_pattern = "*.ini"
+
+[[rule]]
+id = "PY511"
+description = "Pattern-based detection rule #511."
+severity = "High"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+ast_match = "Call(func.value.id=json, func.attr=loads)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "IAC512"
+description = "Pattern-based detection rule #512."
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "Authorization\\s*:\\s*\\bBearer\\b"
+file_pattern = "*.conf"
+
+[[rule]]
+id = "G513"
+description = "Pattern-based detection rule #513."
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "csrf_exempt"
+file_pattern = "*.py"
+
+[[rule]]
+id = "SEC514"
+description = "Pattern-based detection rule #514."
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "X-Frame-Options\\s*:\\s*ALLOW"
+file_pattern = "*.conf"
+
+[[rule]]
+id = "PY515"
+description = "Pattern-based detection rule #515."
+severity = "High"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+ast_match = "Call(func.attr=compile)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "JS516"
+description = "Pattern-based detection rule #516."
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "document\\.write\\s*\\("
+file_pattern = "*.js"
+
+[[rule]]
+id = "PY517"
+description = "Pattern-based detection rule #517."
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "innerHTML\\s*="
+file_pattern = "*.html"
+
+[[rule]]
+id = "PY518"
+description = "Use of subprocess with shell=True — shell injection risk when arguments include user input."
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+ast_match = "Call(func.value.id=subprocess, func.attr=Popen, keywords.*.arg=shell, keywords.*.value.value=True)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY519"
+description = "Pattern-based detection rule #519."
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "setTimeout\\s*\\(\\s*['\\\"]"
+file_pattern = "*.js"
+
+[[rule]]
+id = "PY520"
+description = "Pattern-based detection rule #520."
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "mongoose\\.query\\s*\\("
+file_pattern = "*.js"
+
+[[rule]]
+id = "PY521"
+description = "Suspicious pattern detected by advanced context-aware rule PY521; review source for potential security issues and adopt secure coding practices. (cleaned variant 1 scoped to *.*)"
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "document\\.write\\s*\\("
+file_pattern = "*.*"
+
+[[rule]]
+id = "G522"
+description = "Pattern-based detection rule #522."
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "\\bserialize\\b\\s*\\("
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY523"
+description = "Pattern-based detection rule #523."
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+ast_match = "Call(func.value.id=json, func.attr=loads)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "JS524"
+description = "Pattern-based detection rule #524. (cleaned variant 1 scoped to *.js)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "innerHTML\\s*="
+file_pattern = "*.js"
+
+[[rule]]
+id = "PY525"
+description = "Pattern-based detection rule #525."
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "require\\s*\\(.*child_process"
+file_pattern = "*.js"
+
+[[rule]]
+id = "PY526"
+description = "Pattern-based detection rule #526."
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+ast_match = "Attribute(attr=read, value.name=open)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY527"
+description = "Pattern-based detection rule #527."
+severity = "High"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "chmod\\s+777"
+file_pattern = "*.sh"
+
+[[rule]]
+id = "PY528"
+description = "Suspicious pattern detected by advanced context-aware rule PY528; review source for potential security issues and adopt secure coding practices. (cleaned variant 1 scoped to *.*)"
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "open\\s*\\(\\s*['\\\"]/etc/passwd"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY529"
+description = "Pattern-based detection rule #529."
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "mktemp\\s+-u"
+file_pattern = "*.sh"
+
+[[rule]]
+id = "PY530"
+description = "Pattern-based detection rule #530."
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+ast_match = "Call(func.value.id=json, func.attr=loads)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "G531"
+description = "Pattern-based detection rule #531."
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "verify\\s*:\\s*false"
+file_pattern = "*.y*ml"
+
+[[rule]]
+id = "PY532"
+description = "Pattern-based detection rule #532. (cleaned variant 1 scoped to *.*)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "ssl\\.PROTOCOL_(SSLv2|SSLv3|TLSv1|TLSv1_1)"
+file_pattern = "*.*"
+
+[[rule]]
+id = "JS533"
+description = "Pattern-based detection rule #533. (cleaned variant 2 scoped to *.*)"
+severity = "High"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "document\\.write\\s*\\("
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY534"
+description = "Pattern-based detection rule #534. (cleaned variant 1 scoped to *.py)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "tempfile\\.mktemp"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY535"
+description = "Use of 'compile()' or dynamic code generation detected — may enable execution of attacker-controlled code."
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+ast_match = "Call(func.attr=compile)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY536"
+description = "Pattern-based detection rule #536. (cleaned variant 1 scoped to *.*)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "Authorization\\s*:\\s*\\bBearer\\b"
+file_pattern = "*.*"
+
+[[rule]]
+id = "G537"
+description = "Pattern-based detection rule #537. (cleaned variant 1 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "csrf_exempt"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY538"
+description = "Pattern-based detection rule #538. (cleaned variant 1 scoped to *.py)"
+severity = "High"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "\\.(execute|executemany)\\s*\\(\\s*f?[\"'].*SELECT.*(FROM|UPDATE|DELETE).*%s.*[\"']"
+file_pattern = "*.py"
+
+[[rule]]
+id = "JS539"
+description = "Pattern-based detection rule #539. (cleaned variant 2 scoped to *.js)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "innerHTML\\s*="
+file_pattern = "*.js"
+
+[[rule]]
+id = "PY540"
+description = "Pattern-based detection rule #540."
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "mark_safe\\s*\\("
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY541"
+description = "Suspicious pattern detected by advanced context-aware rule PY541; review source for potential security issues and adopt secure coding practices."
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "yaml\\.load\\s*\\("
+file_pattern = "*.py"
+
+[[rule]]
+id = "G542"
+description = "Pattern-based detection rule #542. (cleaned variant 1 scoped to *.*)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "-----BEGIN (RSA|EC|OPENSSH|PGP) PRIVATE KEY-----"
+file_pattern = "*.pem"
+
+[[rule]]
+id = "PY543"
+description = "Pattern-based detection rule #543."
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+ast_match = "Call(func.value.id=pickle, func.attr=loads)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY544"
+description = "Pattern-based detection rule #544. (cleaned variant 1 scoped to *.*)"
+severity = "High"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "nacl\\.low_level"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY545"
+description = "Pattern-based detection rule #545. (cleaned variant 1 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "from\\s+Crypto|import\\s+Crypto"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY546"
+description = "Suspicious pattern detected by advanced context-aware rule PY546; review source for potential security issues and adopt secure coding practices."
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "\\bSystem\\.exec\\b"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY547"
+description = "Pattern-based detection rule #547. (cleaned variant 1 scoped to *.*)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "require\\s*\\(.*child_process"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY548"
+description = "Pattern-based detection rule #548. (cleaned variant 1 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "setTimeout\\s*\\(\\s*['\\\"]"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY549"
+description = "Pattern-based detection rule #549."
+severity = "High"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "Content-Security-Policy\\s*:\\s*.*unsafe-inline"
+file_pattern = "*.conf"
+
+[[rule]]
+id = "PY550"
+description = "Pattern-based detection rule #550."
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "nginx.*listen\\s+80"
+file_pattern = "*.conf"
+
+[[rule]]
+id = "PY551"
+description = "Suspicious pattern detected by advanced context-aware rule PY551; review source for potential security issues and adopt secure coding practices. (cleaned variant 3 scoped to *.*)"
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "document\\.write\\s*\\("
+file_pattern = "*.*"
+
+[[rule]]
+id = "G552"
+description = "Pattern-based detection rule #552. (cleaned variant 2 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "csrf_exempt"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY553"
+description = "Pattern-based detection rule #553. (cleaned variant 1 scoped to *.*)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "verify\\s*:\\s*false"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY554"
+description = "Pattern-based detection rule #554."
+severity = "High"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+ast_match = "Call(func.value.id=hashlib, func.attr=md5)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY555"
+description = "Pattern-based detection rule #555."
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "jwt_secret\\s*[:=]\\s*['\\\"].+['\\\"]"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY556"
+description = "Pattern-based detection rule #556. (cleaned variant 1 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "(?i)(password|passwd|pass)\\s*[:=]\\s*[\"']\\s*[\"']"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY557"
+description = "Database queries built via string formatting detected — potential SQL injection; use parameterized queries. (cleaned variant 2 scoped to *.py)"
+severity = "Critical"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "\\.(execute|executemany)\\s*\\(\\s*f?[\"'].*SELECT.*(FROM|UPDATE|DELETE).*%s.*[\"']"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY558"
+description = "Pattern-based detection rule #558. (cleaned variant 2 scoped to *.py)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "tempfile\\.mktemp"
+file_pattern = "*.py"
+
+[[rule]]
+id = "G559"
+description = "Pattern-based detection rule #559. (cleaned variant 2 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "-----BEGIN (RSA|EC|OPENSSH|PGP) PRIVATE KEY-----"
+file_pattern = "*.pem"
+
+[[rule]]
+id = "PY560"
+description = "Pattern-based detection rule #560."
+severity = "High"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+ast_match = "Call(func.attr=compile)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "JS561"
+description = "Suspicious pattern detected by advanced context-aware rule JS561; review source for potential security issues and adopt secure coding practices. (cleaned variant 1 scoped to *.*)"
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "new\\s+Function\\s*\\("
+file_pattern = "*.*"
+
+[[rule]]
+id = "G562"
+description = "Pattern-based detection rule #562. (cleaned variant 2 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "Authorization\\s*:\\s*\\bBearer\\b"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY563"
+description = "Pattern-based detection rule #563. (cleaned variant 1 scoped to *.*)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "mark_safe\\s*\\("
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY564"
+description = "Pattern-based detection rule #564. (cleaned variant 1 scoped to *.py)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "\\bexec\\b\\s*\\("
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY565"
+description = "Pattern-based detection rule #565."
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+ast_match = "Call(func.value.id=pickle, func.attr=loads)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY566"
+description = "Pattern-based detection rule #566. (cleaned variant 1 scoped to *.*)"
+severity = "High"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "xml\\.etree\\.ElementTree\\.(parse|fromstring)"
+file_pattern = "*.*"
+
+[[rule]]
+id = "G567"
+description = "Pattern-based detection rule #567. (cleaned variant 2 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "from\\s+Crypto|import\\s+Crypto"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY568"
+description = "Suspicious pattern detected by advanced context-aware rule PY568; review source for potential security issues and adopt secure coding practices. (cleaned variant 1 scoped to *.sh)"
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "chmod\\s+777"
+file_pattern = "*.sh"
+
+[[rule]]
+id = "PY569"
+description = "Pattern-based detection rule #569. (cleaned variant 2 scoped to *.*)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "ssl\\.PROTOCOL_(SSLv2|SSLv3|TLSv1|TLSv1_1)"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY570"
+description = "Pattern-based detection rule #570. (cleaned variant 2 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "setTimeout\\s*\\(\\s*['\\\"]"
+file_pattern = "*.*"
+
+[[rule]]
+id = "G571"
+description = "Pattern-based detection rule #571. (cleaned variant 3 scoped to *.*)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "csrf_exempt"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY572"
+description = "Pattern-based detection rule #572."
+severity = "High"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+ast_match = "Call(func.value.id=hashlib, func.attr=sha1)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY573"
+description = "Pattern-based detection rule #573. (cleaned variant 1 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "aws_access_key_id\\s*[:=]\\s*['\\\"][A-Za-z0-9/+=]{16,}"
+file_pattern = "*.*"
+
+[[rule]]
+id = "JS574"
+description = "Pattern-based detection rule #574. (cleaned variant 3 scoped to *.js)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "innerHTML\\s*="
+file_pattern = "*.js"
+
+[[rule]]
+id = "PY575"
+description = "Content-Security-Policy allows 'unsafe-inline' — weakens XSS protections; remove unsafe-inline where possible. (cleaned variant 1 scoped to *.*)"
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "Content-Security-Policy\\s*:\\s*.*unsafe-inline"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY576"
+description = "Pattern-based detection rule #576. (cleaned variant 3 scoped to *.py)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "tempfile\\.mktemp"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY577"
+description = "Pattern-based detection rule #577."
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+ast_match = "Call(func.attr=compile)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY578"
+description = "Pattern-based detection rule #578. (cleaned variant 1 scoped to *.sh)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "mktemp\\s+-u"
+file_pattern = "*.sh"
+
+[[rule]]
+id = "PY579"
+description = "Pattern-based detection rule #579. (cleaned variant 3 scoped to *.*)"
+severity = "High"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "-----BEGIN (RSA|EC|OPENSSH|PGP) PRIVATE KEY-----"
+file_pattern = "*.pem"
+
+[[rule]]
+id = "PY580"
+description = "Pattern-based detection rule #580. (cleaned variant 3 scoped to *.*)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "Authorization\\s*:\\s*\\bBearer\\b"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY581"
+description = "Use of subprocess with shell=True — shell injection risk when arguments include user input."
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+ast_match = "Call(func.value.id=subprocess, func.attr=Popen, keywords.*.arg=shell, keywords.*.value.value=True)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY582"
+description = "Pattern-based detection rule #582. (cleaned variant 1 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "\\bserialize\\b\\s*\\("
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY583"
+description = "Pattern-based detection rule #583. (cleaned variant 4 scoped to *.*)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "document\\.write\\s*\\("
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY584"
+description = "Pattern-based detection rule #584. (cleaned variant 2 scoped to *.*)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "mark_safe\\s*\\("
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY585"
+description = "Pattern-based detection rule #585. (cleaned variant 2 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "require\\s*\\(.*child_process"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY586"
+description = "Database queries built via string formatting detected — potential SQL injection; use parameterized queries. (cleaned variant 3 scoped to *.py)"
+severity = "Critical"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "\\.(execute|executemany)\\s*\\(\\s*f?[\"'].*SELECT.*(FROM|UPDATE|DELETE).*%s.*[\"']"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY587"
+description = "Pattern-based detection rule #587. (cleaned variant 3 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "ssl\\.PROTOCOL_(SSLv2|SSLv3|TLSv1|TLSv1_1)"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY588"
+description = "Pattern-based detection rule #588. (cleaned variant 2 scoped to *.*)"
+severity = "High"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "xml\\.etree\\.ElementTree\\.(parse|fromstring)"
+file_pattern = "*.*"
+
+[[rule]]
+id = "G589"
+description = "Pattern-based detection rule #589. (cleaned variant 4 scoped to *.*)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "csrf_exempt"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY590"
+description = "Pattern-based detection rule #590. (cleaned variant 4 scoped to *.py)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "tempfile\\.mktemp"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY591"
+description = "Suspicious pattern detected by advanced context-aware rule PY591; review source for potential security issues and adopt secure coding practices. (cleaned variant 2 scoped to *.sh)"
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "chmod\\s+777"
+file_pattern = "*.sh"
+
+[[rule]]
+id = "PY592"
+description = "Pattern-based detection rule #592. (cleaned variant 4 scoped to *.js)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "innerHTML\\s*="
+file_pattern = "*.js"
+
+[[rule]]
+id = "PY593"
+description = "Pattern-based detection rule #593. (cleaned variant 5 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "document\\.write\\s*\\("
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY594"
+description = "Pattern-based detection rule #594."
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+ast_match = "Call(func.value.id=json, func.attr=loads)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY595"
+description = "Pattern-based detection rule #595. (cleaned variant 2 scoped to *.sh)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "mktemp\\s+-u"
+file_pattern = "*.sh"
+
+[[rule]]
+id = "PY596"
+description = "Suspicious pattern detected by advanced context-aware rule PY596; review source for potential security issues and adopt secure coding practices. (cleaned variant 2 scoped to *.*)"
+severity = "Critical"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "new\\s+Function\\s*\\("
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY597"
+description = "Pattern-based detection rule #597. (cleaned variant 4 scoped to *.*)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "Authorization\\s*:\\s*\\bBearer\\b"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY598"
+description = "Pattern-based detection rule #598. (cleaned variant 4 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "-----BEGIN (RSA|EC|OPENSSH|PGP) PRIVATE KEY-----"
+file_pattern = "*.pem"
+
+[[rule]]
+id = "G599"
+description = "Pattern-based detection rule #599. (cleaned variant 5 scoped to *.*)"
+severity = "High"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "csrf_exempt"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY600"
+description = "Pattern-based detection rule #600."
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+ast_match = "Call(func.attr=compile)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY601"
+description = "Pattern-based detection rule #601. (cleaned variant 3 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "require\\s*\\(.*child_process"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY602"
+description = "Use of subprocess with shell=True — shell injection risk when arguments include user input. (cleaned variant 2 scoped to *.py)"
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "subprocess\\.(Popen|call)\\(.*shell\\s*=\\s*True"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY603"
+description = "Pattern-based detection rule #603. (cleaned variant 5 scoped to *.js)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "innerHTML\\s*="
+file_pattern = "*.js"
+
+[[rule]]
+id = "PY604"
+description = "Pattern-based detection rule #604. (cleaned variant 6 scoped to *.*)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "document\\.write\\s*\\("
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY605"
+description = "Pattern-based detection rule #605. (cleaned variant 2 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "aws_access_key_id\\s*[:=]\\s*['\\\"][A-Za-z0-9/+=]{16,}"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY606"
+description = "Pattern-based detection rule #606."
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+ast_match = "Call(func.value.id=pickle, func.attr=loads)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY607"
+description = "Content-Security-Policy allows 'unsafe-inline' — weakens XSS protections; remove unsafe-inline where possible. (cleaned variant 2 scoped to *.*)"
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "Content-Security-Policy\\s*:\\s*.*unsafe-inline"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY608"
+description = "Pattern-based detection rule #608. (cleaned variant 5 scoped to *.py)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "tempfile\\.mktemp"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY609"
+description = "Pattern-based detection rule #609. (cleaned variant 3 scoped to *.*)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "mark_safe\\s*\\("
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY610"
+description = "Pattern-based detection rule #610. (cleaned variant 3 scoped to *.*)"
+severity = "High"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "xml\\.etree\\.ElementTree\\.(parse|fromstring)"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY611"
+description = "Pattern-based detection rule #611. (cleaned variant 3 scoped to *.sh)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "chmod\\s+777"
+file_pattern = "*.sh"
+
+[[rule]]
+id = "PY612"
+description = "Use of json.loads detected — ensure deserialized data is validated before use (avoid unsafe constructs)."
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+ast_match = "Call(func.value.id=json, func.attr=loads)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY613"
+description = "Pattern-based detection rule #613. (cleaned variant 5 scoped to *.*)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "Authorization\\s*:\\s*\\bBearer\\b"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY614"
+description = "Pattern-based detection rule #614. (cleaned variant 5 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "-----BEGIN (RSA|EC|OPENSSH|PGP) PRIVATE KEY-----"
+file_pattern = "*.pem"
+
+[[rule]]
+id = "PY615"
+description = "Pattern-based detection rule #615. (cleaned variant 2 scoped to *.py)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "\\bexec\\b\\s*\\("
+file_pattern = "*.py"
+
+[[rule]]
+id = "G616"
+description = "Pattern-based detection rule #616. (cleaned variant 6 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "csrf_exempt"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY617"
+description = "Pattern-based detection rule #617. (cleaned variant 4 scoped to *.*)"
+severity = "High"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "ssl\\.PROTOCOL_(SSLv2|SSLv3|TLSv1|TLSv1_1)"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY618"
+description = "Pattern-based detection rule #618."
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+ast_match = "Call(func.attr=compile)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY619"
+description = "Use of subprocess with shell=True — shell injection risk when arguments include user input. (cleaned variant 3 scoped to *.py)"
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "subprocess\\.(Popen|call)\\(.*shell\\s*=\\s*True"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY620"
+description = "Pattern-based detection rule #620. (cleaned variant 7 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "document\\.write\\s*\\("
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY621"
+description = "Pattern-based detection rule #621. (cleaned variant 6 scoped to *.js)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "innerHTML\\s*="
+file_pattern = "*.js"
+
+[[rule]]
+id = "PY622"
+description = "Pattern-based detection rule #622. (cleaned variant 3 scoped to *.sh)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "mktemp\\s+-u"
+file_pattern = "*.sh"
+
+[[rule]]
+id = "PY623"
+description = "Pattern-based detection rule #623."
+severity = "High"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+ast_match = "Call(func.value.id=pickle, func.attr=loads)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY624"
+description = "Pattern-based detection rule #624. (cleaned variant 3 scoped to *.*)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "aws_access_key_id\\s*[:=]\\s*['\\\"][A-Za-z0-9/+=]{16,}"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY625"
+description = "Content-Security-Policy allows 'unsafe-inline' — weakens XSS protections; remove unsafe-inline where possible. (cleaned variant 3 scoped to *.*)"
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "Content-Security-Policy\\s*:\\s*.*unsafe-inline"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY626"
+description = "Pattern-based detection rule #626. (cleaned variant 6 scoped to *.py)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "tempfile\\.mktemp"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY627"
+description = "Pattern-based detection rule #627. (cleaned variant 4 scoped to *.*)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "mark_safe\\s*\\("
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY628"
+description = "Pattern-based detection rule #628. (cleaned variant 4 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "require\\s*\\(.*child_process"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY629"
+description = "Pattern-based detection rule #629. (cleaned variant 4 scoped to *.*)"
+severity = "High"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "xml\\.etree\\.ElementTree\\.(parse|fromstring)"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY630"
+description = "Pattern-based detection rule #630. (cleaned variant 4 scoped to *.sh)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "chmod\\s+777"
+file_pattern = "*.sh"
+
+[[rule]]
+id = "PY631"
+description = "Database queries built via string formatting detected — potential SQL injection; use parameterized queries. (cleaned variant 4 scoped to *.py)"
+severity = "Critical"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "\\.(execute|executemany)\\s*\\(\\s*f?[\"'].*SELECT.*(FROM|UPDATE|DELETE).*%s.*[\"']"
+file_pattern = "*.py"
+
+[[rule]]
+id = "G632"
+description = "Pattern-based detection rule #632. (cleaned variant 7 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "csrf_exempt"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY633"
+description = "Pattern-based detection rule #633."
+severity = "High"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+ast_match = "Call(func.attr=compile)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY634"
+description = "Pattern-based detection rule #634. (cleaned variant 7 scoped to *.js)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "innerHTML\\s*="
+file_pattern = "*.js"
+
+[[rule]]
+id = "PY635"
+description = "Suspicious pattern detected by advanced context-aware rule PY635; review source for potential security issues and adopt secure coding practices. (cleaned variant 3 scoped to *.*)"
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "new\\s+Function\\s*\\("
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY636"
+description = "Pattern-based detection rule #636. (cleaned variant 4 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "aws_access_key_id\\s*[:=]\\s*['\\\"][A-Za-z0-9/+=]{16,}"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY637"
+description = "Pattern-based detection rule #637. (cleaned variant 6 scoped to *.*)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "Authorization\\s*:\\s*\\bBearer\\b"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY638"
+description = "Pattern-based detection rule #638. (cleaned variant 6 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "-----BEGIN (RSA|EC|OPENSSH|PGP) PRIVATE KEY-----"
+file_pattern = "*.pem"
+
+[[rule]]
+id = "PY639"
+description = "Pattern-based detection rule #639."
+severity = "High"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+ast_match = "Call(func.value.id=json, func.attr=loads)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY640"
+description = "Content-Security-Policy allows 'unsafe-inline' — weakens XSS protections; remove unsafe-inline where possible. (cleaned variant 4 scoped to *.*)"
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "Content-Security-Policy\\s*:\\s*.*unsafe-inline"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY641"
+description = "Pattern-based detection rule #641. (cleaned variant 7 scoped to *.py)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "tempfile\\.mktemp"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY642"
+description = "Pattern-based detection rule #642. (cleaned variant 5 scoped to *.*)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "mark_safe\\s*\\("
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY643"
+description = "Pattern-based detection rule #643. (cleaned variant 5 scoped to *.*)"
+severity = "High"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "xml\\.etree\\.ElementTree\\.(parse|fromstring)"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY644"
+description = "Pattern-based detection rule #644. (cleaned variant 5 scoped to *.sh)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "chmod\\s+777"
+file_pattern = "*.sh"
+
+[[rule]]
+id = "PY645"
+description = "Use of 'compile()' or dynamic code generation detected — may enable execution of attacker-controlled code."
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+ast_match = "Call(func.attr=compile)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY646"
+description = "Pattern-based detection rule #646. (cleaned variant 8 scoped to *.js)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "innerHTML\\s*="
+file_pattern = "*.js"
+
+[[rule]]
+id = "PY647"
+description = "Pattern-based detection rule #647. (cleaned variant 5 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "require\\s*\\(.*child_process"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY648"
+description = "Pattern-based detection rule #648. (cleaned variant 7 scoped to *.*)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "Authorization\\s*:\\s*\\bBearer\\b"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY649"
+description = "Pattern-based detection rule #649. (cleaned variant 7 scoped to *.*)"
+severity = "High"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "-----BEGIN (RSA|EC|OPENSSH|PGP) PRIVATE KEY-----"
+file_pattern = "*.pem"
+
+[[rule]]
+id = "PY650"
+description = "Database queries built via string formatting detected — potential SQL injection; use parameterized queries. (cleaned variant 5 scoped to *.py)"
+severity = "Critical"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "\\.(execute|executemany)\\s*\\(\\s*f?[\"'].*SELECT.*(FROM|UPDATE|DELETE).*%s.*[\"']"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY651"
+description = "Pattern-based detection rule #651. (cleaned variant 8 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "csrf_exempt"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY652"
+description = "Pattern-based detection rule #652. (cleaned variant 4 scoped to *.sh)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "mktemp\\s+-u"
+file_pattern = "*.sh"
+
+[[rule]]
+id = "PY653"
+description = "Pattern-based detection rule #653. (cleaned variant 8 scoped to *.py)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "tempfile\\.mktemp"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY654"
+description = "Pattern-based detection rule #654. (cleaned variant 6 scoped to *.*)"
+severity = "High"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "xml\\.etree\\.ElementTree\\.(parse|fromstring)"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY655"
+description = "Suspicious pattern detected by advanced context-aware rule PY655; review source for potential security issues and adopt secure coding practices. (cleaned variant 4 scoped to *.*)"
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "new\\s+Function\\s*\\("
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY656"
+description = "Pattern-based detection rule #656. (cleaned variant 8 scoped to *.*)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "Authorization\\s*:\\s*\\bBearer\\b"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY657"
+description = "Pattern-based detection rule #657. (cleaned variant 8 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "-----BEGIN (RSA|EC|OPENSSH|PGP) PRIVATE KEY-----"
+file_pattern = "*.pem"
+
+[[rule]]
+id = "PY658"
+description = "Pattern-based detection rule #658."
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+ast_match = "Call(func.value.id=json, func.attr=loads)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY659"
+description = "Pattern-based detection rule #659. (cleaned variant 5 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "Content-Security-Policy\\s*:\\s*.*unsafe-inline"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY660"
+description = "Use of subprocess with shell=True — shell injection risk when arguments include user input. (cleaned variant 4 scoped to *.py)"
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "subprocess\\.(Popen|call)\\(.*shell\\s*=\\s*True"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY661"
+description = "Pattern-based detection rule #661. (cleaned variant 5 scoped to *.sh)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "mktemp\\s+-u"
+file_pattern = "*.sh"
+
+[[rule]]
+id = "PY662"
+description = "Pattern-based detection rule #662. (cleaned variant 6 scoped to *.*)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "require\\s*\\(.*child_process"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY663"
+description = "Pattern-based detection rule #663. (cleaned variant 9 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "csrf_exempt"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY664"
+description = "Pattern-based detection rule #664."
+severity = "High"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+ast_match = "Call(func.value.id=pickle, func.attr=loads)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY665"
+description = "Content-Security-Policy allows 'unsafe-inline' — weakens XSS protections; remove unsafe-inline where possible. (cleaned variant 6 scoped to *.*)"
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "Content-Security-Policy\\s*:\\s*.*unsafe-inline"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY666"
+description = "Pattern-based detection rule #666. (cleaned variant 9 scoped to *.py)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "tempfile\\.mktemp"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY667"
+description = "Pattern-based detection rule #667. (cleaned variant 9 scoped to *.js)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "innerHTML\\s*="
+file_pattern = "*.js"
+
+[[rule]]
+id = "PY668"
+description = "Pattern-based detection rule #668. (cleaned variant 7 scoped to *.*)"
+severity = "High"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "xml\\.etree\\.ElementTree\\.(parse|fromstring)"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY669"
+description = "Pattern-based detection rule #669. (cleaned variant 6 scoped to *.sh)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "mktemp\\s+-u"
+file_pattern = "*.sh"
+
+[[rule]]
+id = "PY670"
+description = "Use of 'compile()' or dynamic code generation detected — may enable execution of attacker-controlled code."
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+ast_match = "Call(func.attr=compile)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY671"
+description = "Pattern-based detection rule #671. (cleaned variant 9 scoped to *.*)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "Authorization\\s*:\\s*\\bBearer\\b"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY672"
+description = "Pattern-based detection rule #672. (cleaned variant 9 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "-----BEGIN (RSA|EC|OPENSSH|PGP) PRIVATE KEY-----"
+file_pattern = "*.pem"
+
+[[rule]]
+id = "PY673"
+description = "Pattern-based detection rule #673. (cleaned variant 8 scoped to *.*)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "document\\.write\\s*\\("
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY674"
+description = "Pattern-based detection rule #674. (cleaned variant 6 scoped to *.sh)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "chmod\\s+777"
+file_pattern = "*.sh"
+
+[[rule]]
+id = "PY675"
+description = "Database queries built via string formatting detected — potential SQL injection; use parameterized queries. (cleaned variant 6 scoped to *.py)"
+severity = "Critical"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "\\.(execute|executemany)\\s*\\(\\s*f?[\"'].*SELECT.*(FROM|UPDATE|DELETE).*%s.*[\"']"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY676"
+description = "Pattern-based detection rule #676. (cleaned variant 10 scoped to *.js)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "innerHTML\\s*="
+file_pattern = "*.js"
+
+[[rule]]
+id = "PY677"
+description = "Pattern-based detection rule #677. (cleaned variant 5 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "aws_access_key_id\\s*[:=]\\s*['\\\"][A-Za-z0-9/+=]{16,}"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY678"
+description = "Pattern-based detection rule #678. (cleaned variant 10 scoped to *.*)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "csrf_exempt"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY679"
+description = "Use of subprocess with shell=True — shell injection risk when arguments include user input."
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+ast_match = "Call(func.value.id=subprocess, func.attr=Popen, keywords.*.arg=shell, keywords.*.value.value=True)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY680"
+description = "Pattern-based detection rule #680. (cleaned variant 10 scoped to *.py)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "tempfile\\.mktemp"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY681"
+description = "Pattern-based detection rule #681. (cleaned variant 7 scoped to *.*)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "Content-Security-Policy\\s*:\\s*.*unsafe-inline"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY682"
+description = "Pattern-based detection rule #682. (cleaned variant 7 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "require\\s*\\(.*child_process"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY683"
+description = "Suspicious pattern detected by advanced context-aware rule PY683; review source for potential security issues and adopt secure coding practices. (cleaned variant 9 scoped to *.*)"
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "document\\.write\\s*\\("
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY684"
+description = "Pattern-based detection rule #684. (cleaned variant 7 scoped to *.sh)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "mktemp\\s+-u"
+file_pattern = "*.sh"
+
+[[rule]]
+id = "PY685"
+description = "Pattern-based detection rule #685. (cleaned variant 11 scoped to *.js)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "innerHTML\\s*="
+file_pattern = "*.js"
+
+[[rule]]
+id = "PY686"
+description = "Pattern-based detection rule #686. (cleaned variant 8 scoped to *.*)"
+severity = "High"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "xml\\.etree\\.ElementTree\\.(parse|fromstring)"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY687"
+description = "Pattern-based detection rule #687. (cleaned variant 11 scoped to *.py)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "tempfile\\.mktemp"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY688"
+description = "Pattern-based detection rule #688. (cleaned variant 10 scoped to *.*)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "Authorization\\s*:\\s*\\bBearer\\b"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY689"
+description = "Use of subprocess with shell=True — shell injection risk when arguments include user input. (cleaned variant 5 scoped to *.py)"
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "subprocess\\.(Popen|call)\\(.*shell\\s*=\\s*True"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY690"
+description = "Pattern-based detection rule #690. (cleaned variant 7 scoped to *.sh)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "chmod\\s+777"
+file_pattern = "*.sh"
+
+[[rule]]
+id = "PY691"
+description = "Pattern-based detection rule #691. (cleaned variant 5 scoped to *.*)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "new\\s+Function\\s*\\("
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY692"
+description = "Pattern-based detection rule #692. (cleaned variant 10 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "-----BEGIN (RSA|EC|OPENSSH|PGP) PRIVATE KEY-----"
+file_pattern = "*.pem"
+
+[[rule]]
+id = "PY693"
+description = "Database queries built via string formatting detected — potential SQL injection; use parameterized queries. (cleaned variant 7 scoped to *.py)"
+severity = "Critical"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "\\.(execute|executemany)\\s*\\(\\s*f?[\"'].*SELECT.*(FROM|UPDATE|DELETE).*%s.*[\"']"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY694"
+description = "Pattern-based detection rule #694. (cleaned variant 11 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "csrf_exempt"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY695"
+description = "Pattern-based detection rule #695. (cleaned variant 12 scoped to *.js)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "innerHTML\\s*="
+file_pattern = "*.js"
+
+[[rule]]
+id = "PY696"
+description = "Pattern-based detection rule #696. (cleaned variant 8 scoped to *.sh)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "mktemp\\s+-u"
+file_pattern = "*.sh"
+
+[[rule]]
+id = "PY697"
+description = "Suspicious pattern detected by advanced context-aware rule PY697; review source for potential security issues and adopt secure coding practices. (cleaned variant 10 scoped to *.*)"
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "document\\.write\\s*\\("
+file_pattern = "*.*"
+
+[[rule]]
+id = "G698"
+description = "Pattern-based detection rule #698. (cleaned variant 12 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "csrf_exempt"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY699"
+description = "Pattern-based detection rule #699. (cleaned variant 11 scoped to *.*)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "Authorization\\s*:\\s*\\bBearer\\b"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY700"
+description = "Pattern-based detection rule #700. (cleaned variant 9 scoped to *.*)"
+severity = "High"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "xml\\.etree\\.ElementTree\\.(parse|fromstring)"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY701"
+description = "Pattern-based detection rule #701. (cleaned variant 12 scoped to *.py)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "tempfile\\.mktemp"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY702"
+description = "Suspicious pattern detected by advanced context-aware rule PY702; review source for potential security issues and adopt secure coding practices. (cleaned variant 8 scoped to *.sh)"
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "chmod\\s+777"
+file_pattern = "*.sh"
+
+[[rule]]
+id = "PY703"
+description = "Pattern-based detection rule #703. (cleaned variant 6 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "aws_access_key_id\\s*[:=]\\s*['\\\"][A-Za-z0-9/+=]{16,}"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY704"
+description = "Pattern-based detection rule #704."
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+ast_match = "Call(func.value.id=json, func.attr=loads)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY705"
+description = "Pattern-based detection rule #705. (cleaned variant 13 scoped to *.js)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "innerHTML\\s*="
+file_pattern = "*.js"
+
+[[rule]]
+id = "PY706"
+description = "Suspicious pattern detected by advanced context-aware rule PY706; review source for potential security issues and adopt secure coding practices. (cleaned variant 6 scoped to *.*)"
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "new\\s+Function\\s*\\("
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY707"
+description = "Pattern-based detection rule #707. (cleaned variant 8 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "require\\s*\\(.*child_process"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY708"
+description = "Pattern-based detection rule #708. (cleaned variant 13 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "csrf_exempt"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY709"
+description = "Content-Security-Policy allows 'unsafe-inline' — weakens XSS protections; remove unsafe-inline where possible. (cleaned variant 8 scoped to *.*)"
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "Content-Security-Policy\\s*:\\s*.*unsafe-inline"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY710"
+description = "Pattern-based detection rule #710. (cleaned variant 9 scoped to *.sh)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "mktemp\\s+-u"
+file_pattern = "*.sh"
+
+[[rule]]
+id = "PY711"
+description = "Pattern-based detection rule #711. (cleaned variant 9 scoped to *.sh)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "chmod\\s+777"
+file_pattern = "*.sh"
+
+[[rule]]
+id = "PY712"
+description = "Pattern-based detection rule #712."
+severity = "High"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+ast_match = "Call(func.value.id=pickle, func.attr=loads)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY713"
+description = "Pattern-based detection rule #713. (cleaned variant 11 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "-----BEGIN (RSA|EC|OPENSSH|PGP) PRIVATE KEY-----"
+file_pattern = "*.pem"
+
+[[rule]]
+id = "PY714"
+description = "Database queries built via string formatting detected — potential SQL injection; use parameterized queries. (cleaned variant 8 scoped to *.py)"
+severity = "Critical"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "\\.(execute|executemany)\\s*\\(\\s*f?[\"'].*SELECT.*(FROM|UPDATE|DELETE).*%s.*[\"']"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY715"
+description = "Pattern-based detection rule #715."
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "isset\\s*\\("
+file_pattern = "*.php"
+
+[[rule]]
+id = "PY716"
+description = "Pattern-based detection rule #716. (cleaned variant 14 scoped to *.js)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "innerHTML\\s*="
+file_pattern = "*.js"
+
+[[rule]]
+id = "PY717"
+description = "Pattern-based detection rule #717. (cleaned variant 13 scoped to *.py)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "tempfile\\.mktemp"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY718"
+description = "Use of 'compile()' or dynamic code generation detected — may enable execution of attacker-controlled code."
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+ast_match = "Call(func.attr=compile)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY719"
+description = "Pattern-based detection rule #719. (cleaned variant 9 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "require\\s*\\(.*child_process"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY720"
+description = "Pattern-based detection rule #720. (cleaned variant 12 scoped to *.*)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "Authorization\\s*:\\s*\\bBearer\\b"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY721"
+description = "Pattern-based detection rule #721. (cleaned variant 12 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "-----BEGIN (RSA|EC|OPENSSH|PGP) PRIVATE KEY-----"
+file_pattern = "*.pem"
+
+[[rule]]
+id = "PY722"
+description = "Use of subprocess with shell=True — shell injection risk when arguments include user input. (cleaned variant 6 scoped to *.py)"
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "subprocess\\.(Popen|call)\\(.*shell\\s*=\\s*True"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY723"
+description = "Pattern-based detection rule #723. (cleaned variant 10 scoped to *.sh)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "mktemp\\s+-u"
+file_pattern = "*.sh"
+
+[[rule]]
+id = "PY724"
+description = "Pattern-based detection rule #724. (cleaned variant 10 scoped to *.*)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "xml\\.etree\\.ElementTree\\.(parse|fromstring)"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY725"
+description = "Pattern-based detection rule #725. (cleaned variant 14 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "csrf_exempt"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY726"
+description = "Content-Security-Policy allows 'unsafe-inline' — weakens XSS protections; remove unsafe-inline where possible. (cleaned variant 9 scoped to *.*)"
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "Content-Security-Policy\\s*:\\s*.*unsafe-inline"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY727"
+description = "Pattern-based detection rule #727. (cleaned variant 15 scoped to *.js)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "innerHTML\\s*="
+file_pattern = "*.js"
+
+[[rule]]
+id = "PY728"
+description = "Pattern-based detection rule #728. (cleaned variant 10 scoped to *.sh)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "chmod\\s+777"
+file_pattern = "*.sh"
+
+[[rule]]
+id = "PY729"
+description = "Pattern-based detection rule #729. (cleaned variant 1 scoped to *.py)"
+severity = "High"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "\\.exec\\s*\\("
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY730"
+description = "Use of json.loads detected — ensure deserialized data is validated before use (avoid unsafe constructs)."
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+ast_match = "Call(func.value.id=json, func.attr=loads)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY731"
+description = "Pattern-based detection rule #731. (cleaned variant 11 scoped to *.sh)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "mktemp\\s+-u"
+file_pattern = "*.sh"
+
+[[rule]]
+id = "PY732"
+description = "Pattern-based detection rule #732. (cleaned variant 11 scoped to *.*)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "document\\.write\\s*\\("
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY733"
+description = "Pattern-based detection rule #733. (cleaned variant 14 scoped to *.py)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "tempfile\\.mktemp"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY734"
+description = "Database queries built via string formatting detected — potential SQL injection; use parameterized queries. (cleaned variant 9 scoped to *.py)"
+severity = "Critical"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "\\.(execute|executemany)\\s*\\(\\s*f?[\"'].*SELECT.*(FROM|UPDATE|DELETE).*%s.*[\"']"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY735"
+description = "Pattern-based detection rule #735. (cleaned variant 15 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "csrf_exempt"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY736"
+description = "Pattern-based detection rule #736. (cleaned variant 16 scoped to *.js)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "innerHTML\\s*="
+file_pattern = "*.js"
+
+[[rule]]
+id = "PY737"
+description = "Pattern-based detection rule #737. (cleaned variant 10 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "require\\s*\\(.*child_process"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY738"
+description = "Pattern-based detection rule #738. (cleaned variant 11 scoped to *.*)"
+severity = "High"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "xml\\.etree\\.ElementTree\\.(parse|fromstring)"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY739"
+description = "Pattern-based detection rule #739. (cleaned variant 15 scoped to *.py)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "tempfile\\.mktemp"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY740"
+description = "Suspicious pattern detected by advanced context-aware rule PY740; review source for potential security issues and adopt secure coding practices. (cleaned variant 7 scoped to *.*)"
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "new\\s+Function\\s*\\("
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY741"
+description = "Pattern-based detection rule #741. (cleaned variant 11 scoped to *.sh)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "chmod\\s+777"
+file_pattern = "*.sh"
+
+[[rule]]
+id = "PY742"
+description = "Pattern-based detection rule #742. (cleaned variant 13 scoped to *.*)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "Authorization\\s*:\\s*\\bBearer\\b"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY743"
+description = "Pattern-based detection rule #743. (cleaned variant 13 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "-----BEGIN (RSA|EC|OPENSSH|PGP) PRIVATE KEY-----"
+file_pattern = "*.pem"
+
+[[rule]]
+id = "PY744"
+description = "Use of 'compile()' or dynamic code generation detected — may enable execution of attacker-controlled code."
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+ast_match = "Call(func.attr=compile)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY745"
+description = "Pattern-based detection rule #745. (cleaned variant 12 scoped to *.sh)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "mktemp\\s+-u"
+file_pattern = "*.sh"
+
+[[rule]]
+id = "PY746"
+description = "Pattern-based detection rule #746. (cleaned variant 12 scoped to *.*)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "document\\.write\\s*\\("
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY747"
+description = "Pattern-based detection rule #747. (cleaned variant 16 scoped to *.py)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "tempfile\\.mktemp"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY748"
+description = "Use of subprocess with shell=True — shell injection risk when arguments include user input. (cleaned variant 7 scoped to *.py)"
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "subprocess\\.(Popen|call)\\(.*shell\\s*=\\s*True"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY749"
+description = "Pattern-based detection rule #749. (cleaned variant 16 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "csrf_exempt"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY750"
+description = "Pattern-based detection rule #750. (cleaned variant 17 scoped to *.js)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "innerHTML\\s*="
+file_pattern = "*.js"
+
+[[rule]]
+id = "PY751"
+description = "Pattern-based detection rule #751. (cleaned variant 11 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "require\\s*\\(.*child_process"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY752"
+description = "Pattern-based detection rule #752. (cleaned variant 12 scoped to *.*)"
+severity = "High"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "xml\\.etree\\.ElementTree\\.(parse|fromstring)"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY753"
+description = "Content-Security-Policy allows 'unsafe-inline' — weakens XSS protections; remove unsafe-inline where possible. (cleaned variant 10 scoped to *.*)"
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "Content-Security-Policy\\s*:\\s*.*unsafe-inline"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY754"
+description = "Pattern-based detection rule #754. (cleaned variant 13 scoped to *.sh)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "mktemp\\s+-u"
+file_pattern = "*.sh"
+
+[[rule]]
+id = "PY755"
+description = "Pattern-based detection rule #755. (cleaned variant 12 scoped to *.sh)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "chmod\\s+777"
+file_pattern = "*.sh"
+
+[[rule]]
+id = "PY756"
+description = "Pattern-based detection rule #756. (cleaned variant 17 scoped to *.py)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "tempfile\\.mktemp"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY757"
+description = "Suspicious pattern detected by advanced context-aware rule PY757; review source for potential security issues and adopt secure coding practices. (cleaned variant 8 scoped to *.*)"
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "new\\s+Function\\s*\\("
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY758"
+description = "Pattern-based detection rule #758. (cleaned variant 17 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "csrf_exempt"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY759"
+description = "Pattern-based detection rule #759. (cleaned variant 18 scoped to *.js)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "innerHTML\\s*="
+file_pattern = "*.js"
+
+[[rule]]
+id = "PY760"
+description = "Pattern-based detection rule #760. (cleaned variant 12 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "require\\s*\\(.*child_process"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY761"
+description = "Use of subprocess with shell=True — shell injection risk when arguments include user input. (cleaned variant 8 scoped to *.py)"
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "subprocess\\.(Popen|call)\\(.*shell\\s*=\\s*True"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY762"
+description = "Pattern-based detection rule #762. (cleaned variant 14 scoped to *.sh)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "mktemp\\s+-u"
+file_pattern = "*.sh"
+
+[[rule]]
+id = "PY763"
+description = "Pattern-based detection rule #763. (cleaned variant 13 scoped to *.*)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "xml\\.etree\\.ElementTree\\.(parse|fromstring)"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY764"
+description = "Pattern-based detection rule #764. (cleaned variant 18 scoped to *.py)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "tempfile\\.mktemp"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY765"
+description = "Content-Security-Policy allows 'unsafe-inline' — weakens XSS protections; remove unsafe-inline where possible. (cleaned variant 11 scoped to *.*)"
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "Content-Security-Policy\\s*:\\s*.*unsafe-inline"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY766"
+description = "Pattern-based detection rule #766. (cleaned variant 13 scoped to *.sh)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "chmod\\s+777"
+file_pattern = "*.sh"
+
+[[rule]]
+id = "PY767"
+description = "Pattern-based detection rule #767. (cleaned variant 19 scoped to *.js)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "innerHTML\\s*="
+file_pattern = "*.js"
+
+[[rule]]
+id = "PY768"
+description = "Pattern-based detection rule #768. (cleaned variant 13 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "require\\s*\\(.*child_process"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY769"
+description = "Use of subprocess with shell=True — shell injection risk when arguments include user input. (cleaned variant 9 scoped to *.py)"
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "subprocess\\.(Popen|call)\\(.*shell\\s*=\\s*True"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY770"
+description = "Pattern-based detection rule #770. (cleaned variant 15 scoped to *.sh)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "mktemp\\s+-u"
+file_pattern = "*.sh"
+
+[[rule]]
+id = "PY771"
+description = "Pattern-based detection rule #771. (cleaned variant 14 scoped to *.*)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "xml\\.etree\\.ElementTree\\.(parse|fromstring)"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY772"
+description = "Suspicious pattern detected by advanced context-aware rule PY772; review source for potential security issues and adopt secure coding practices. (cleaned variant 9 scoped to *.*)"
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "new\\s+Function\\s*\\("
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY773"
+description = "Pattern-based detection rule #773. (cleaned variant 18 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "csrf_exempt"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY774"
+description = "Pattern-based detection rule #774. (cleaned variant 12 scoped to *.*)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "Content-Security-Policy\\s*:\\s*.*unsafe-inline"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY775"
+description = "Database queries built via string formatting detected — potential SQL injection; use parameterized queries. (cleaned variant 10 scoped to *.py)"
+severity = "Critical"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "\\.(execute|executemany)\\s*\\(\\s*f?[\"'].*SELECT.*(FROM|UPDATE|DELETE).*%s.*[\"']"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY776"
+description = "Pattern-based detection rule #776. (cleaned variant 19 scoped to *.py)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "tempfile\\.mktemp"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY777"
+description = "Pattern-based detection rule #777. (cleaned variant 20 scoped to *.js)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "innerHTML\\s*="
+file_pattern = "*.js"
+
+[[rule]]
+id = "PY778"
+description = "Pattern-based detection rule #778. (cleaned variant 14 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "require\\s*\\(.*child_process"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY779"
+description = "Suspicious pattern detected by advanced context-aware rule PY779; review source for potential security issues and adopt secure coding practices. (cleaned variant 10 scoped to *.*)"
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "new\\s+Function\\s*\\("
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY780"
+description = "Pattern-based detection rule #780. (cleaned variant 14 scoped to *.sh)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "chmod\\s+777"
+file_pattern = "*.sh"
+
+[[rule]]
+id = "PY781"
+description = "Pattern-based detection rule #781. (cleaned variant 14 scoped to *.*)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "Authorization\\s*:\\s*\\bBearer\\b"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY782"
+description = "Pattern-based detection rule #782. (cleaned variant 14 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "-----BEGIN (RSA|EC|OPENSSH|PGP) PRIVATE KEY-----"
+file_pattern = "*.pem"
+
+[[rule]]
+id = "PY783"
+description = "Content-Security-Policy allows 'unsafe-inline' — weakens XSS protections; remove unsafe-inline where possible. (cleaned variant 13 scoped to *.*)"
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "Content-Security-Policy\\s*:\\s*.*unsafe-inline"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY784"
+description = "Pattern-based detection rule #784. (cleaned variant 16 scoped to *.sh)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "mktemp\\s+-u"
+file_pattern = "*.sh"
+
+[[rule]]
+id = "PY785"
+description = "Pattern-based detection rule #785. (cleaned variant 21 scoped to *.js)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "innerHTML\\s*="
+file_pattern = "*.js"
+
+[[rule]]
+id = "PY786"
+description = "Use of json.loads detected — ensure deserialized data is validated before use (avoid unsafe constructs)."
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+ast_match = "Call(func.value.id=json, func.attr=loads)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY787"
+description = "Pattern-based detection rule #787. (cleaned variant 20 scoped to *.py)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "tempfile\\.mktemp"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY788"
+description = "Pattern-based detection rule #788. (cleaned variant 15 scoped to *.*)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "xml\\.etree\\.ElementTree\\.(parse|fromstring)"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY789"
+description = "Pattern-based detection rule #789. (cleaned variant 19 scoped to *.*)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "csrf_exempt"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY790"
+description = "Database queries built via string formatting detected — potential SQL injection; use parameterized queries. (cleaned variant 11 scoped to *.py)"
+severity = "Critical"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "\\.(execute|executemany)\\s*\\(\\s*f?[\"'].*SELECT.*(FROM|UPDATE|DELETE).*%s.*[\"']"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY791"
+description = "Pattern-based detection rule #791. (cleaned variant 17 scoped to *.sh)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "mktemp\\s+-u"
+file_pattern = "*.sh"
+
+[[rule]]
+id = "PY792"
+description = "Pattern-based detection rule #792. (cleaned variant 13 scoped to *.*)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "document\\.write\\s*\\("
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY793"
+description = "Pattern-based detection rule #793. (cleaned variant 22 scoped to *.js)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "innerHTML\\s*="
+file_pattern = "*.js"
+
+[[rule]]
+id = "PY794"
+description = "Suspicious pattern detected by advanced context-aware rule PY794; review source for potential security issues and adopt secure coding practices. (cleaned variant 11 scoped to *.*)"
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "new\\s+Function\\s*\\("
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY795"
+description = "Pattern-based detection rule #795. (cleaned variant 15 scoped to *.sh)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "chmod\\s+777"
+file_pattern = "*.sh"
+
+[[rule]]
+id = "PY796"
+description = "Pattern-based detection rule #796. (cleaned variant 15 scoped to *.*)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "Authorization\\s*:\\s*\\bBearer\\b"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY797"
+description = "Insecure deserialization using 'pickle' which can lead to remote code execution if input is untrusted."
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+ast_match = "Call(func.value.id=pickle, func.attr=loads)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY798"
+description = "Pattern-based detection rule #798. (cleaned variant 21 scoped to *.py)"
+severity = "Low"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "tempfile\\.mktemp"
+file_pattern = "*.py"
+
+[[rule]]
+id = "PY799"
+description = "Pattern-based detection rule #799. (cleaned variant 16 scoped to *.*)"
+severity = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "xml\\.etree\\.ElementTree\\.(parse|fromstring)"
+file_pattern = "*.*"
+
+[[rule]]
+id = "PY800"
+description = "Database queries built via string formatting detected — potential SQL injection; use parameterized queries. (cleaned variant 12 scoped to *.py)"
+severity = "High"
+confidence = "Medium"
+remediation = "Review the usage and apply secure coding practices or safer library functions."
+pattern = "\\.(execute|executemany)\\s*\\(\\s*f?[\"'].*SELECT.*(FROM|UPDATE|DELETE).*%s.*[\"']"
+file_pattern = "*.py"
+
+
+[[rule]]
+id = "PY801"
+description = "Detected use of os.system or similar shell invocation — command injection and shell injection risk."
+severity = "High"
+remediation = "Avoid os.system; use subprocess with a list of args and no shell or sanitize inputs."
+pattern = "\\b(os\.system|subprocess\.Popen|subprocess\.call)\\b"
+file_pattern = "*.py"
+
+
+[[rule]]
+id = "PY802"
+description = "Use of eval()/new Function detected — remote code execution or XSS risk depending on context."
+severity = "Critical"
+remediation = "Replace eval/new Function with safer parsing libraries or explicit interpreters."
+pattern = "eval\s*\("|pattern = "new\\s+Function\\s*\\("
+file_pattern = "*.js"
+
+
+[[rule]]
+id = "PY803"
+description = "Hardcoded credentials detected (API keys, tokens) in configuration or code."
+severity = "High"
+remediation = "Move secrets to environment variables or a secrets manager; rotate any leaked keys."
+pattern = "(?i)(api_key|secret|access_key|aws_secret_access_key)\\s*[:=]\\s*["\"][A-Za-z0-9/+=]{8,}["\"]"
+file_pattern = "*.*"
+
+
+[[rule]]
+id = "PY804"
+description = "Insecure TLS/SSL protocol usage detected (SSLv2/SSLv3/TLSv1.0/TLSv1.1). (cleaned variant 5 scoped to *.*)"
+severity = "High"
+remediation = "Use TLS 1.2+ and avoid deprecated protocols."
+pattern = "ssl\\.PROTOCOL_(SSLv2|SSLv3|TLSv1|TLSv1_1)"
+file_pattern = "*.*"
+
+
+[[rule]]
+id = "PY805"
+description = "Potential insecure XML parsing detected (possible XXE or XML bombs). (cleaned variant 17 scoped to *.*)"
+severity = "High"
+remediation = "Use defusedxml or secure XML parsing APIs and validate external entity handling."
+pattern = "xml\\.etree\\.ElementTree\\.(parse|fromstring)"
+file_pattern = "*.*"
+
+
+[[rule]]
+id = "PY806"
+description = "Insecure temporary file usage detected (tempfile.mktemp or mktemp -u) that can allow TOCTOU."
+severity = "Medium"
+remediation = "Use tempfile.mkstemp or NamedTemporaryFile with proper flags."
+pattern = "tempfile\\.mktemp|mktemp\\s+-u"
+file_pattern = "*.*"
+
+
+[[rule]]
+id = "PY807"
+description = "Overly-broad file permissions or world-writable files detected (chmod 777). (cleaned variant 16 scoped to *.sh)"
+severity = "Medium"
+remediation = "Avoid chmod 777; apply least-privilege permissions."
+pattern = "chmod\\s+777"
+file_pattern = "*.sh"
+
+
+[[rule]]
+id = "PY808"
+description = "Detected use of os.system or similar shell invocation — command injection and shell injection risk. (cleaned variant 1 scoped to *.py)"
+severity = "High"
+remediation = "Avoid os.system; use subprocess with a list of args and no shell or sanitize inputs."
+pattern = "\\b(os\.system|subprocess\.Popen|subprocess\.call)\\b"
+file_pattern = "*.py"
+
+
+[[rule]]
+id = "PY809"
+description = "Use of eval()/new Function detected — remote code execution or XSS risk depending on context. (cleaned variant 1 scoped to *.*)"
+severity = "Critical"
+remediation = "Replace eval/new Function with safer parsing libraries or explicit interpreters."
+pattern = "eval\s*\("|pattern = "new\\s+Function\\s*\\("
+file_pattern = "*.*"
+
+
+[[rule]]
+id = "PY810"
+description = "Hardcoded credentials detected (API keys, tokens) in configuration or code. (cleaned variant 1 scoped to *.*)"
+severity = "High"
+remediation = "Move secrets to environment variables or a secrets manager; rotate any leaked keys."
+pattern = "(?i)(api_key|secret|access_key|aws_secret_access_key)\\s*[:=]\\s*["\"][A-Za-z0-9/+=]{8,}["\"]"
+file_pattern = "*.*"
+
+
+[[rule]]
+id = "PY811"
+description = "Insecure TLS/SSL protocol usage detected (SSLv2/SSLv3/TLSv1.0/TLSv1.1). (cleaned variant 6 scoped to *.*)"
+severity = "High"
+remediation = "Use TLS 1.2+ and avoid deprecated protocols."
+pattern = "ssl\\.PROTOCOL_(SSLv2|SSLv3|TLSv1|TLSv1_1)"
+file_pattern = "*.*"
+
+
+[[rule]]
+id = "PY812"
+description = "Potential insecure XML parsing detected (possible XXE or XML bombs). (cleaned variant 18 scoped to *.*)"
+severity = "High"
+remediation = "Use defusedxml or secure XML parsing APIs and validate external entity handling."
+pattern = "xml\\.etree\\.ElementTree\\.(parse|fromstring)"
+file_pattern = "*.*"
+
+
+[[rule]]
+id = "PY813"
+description = "Insecure temporary file usage detected (tempfile.mktemp or mktemp -u) that can allow TOCTOU. (cleaned variant 1 scoped to *.py)"
+severity = "Medium"
+remediation = "Use tempfile.mkstemp or NamedTemporaryFile with proper flags."
+pattern = "tempfile\\.mktemp|mktemp\\s+-u"
+file_pattern = "*.py"
+
+
+[[rule]]
+id = "PY814"
+description = "Overly-broad file permissions or world-writable files detected (chmod 777). (cleaned variant 17 scoped to *.sh)"
+severity = "Medium"
+remediation = "Avoid chmod 777; apply least-privilege permissions."
+pattern = "chmod\\s+777"
+file_pattern = "*.sh"
