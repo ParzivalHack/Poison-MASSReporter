@@ -10,7 +10,7 @@ The tool is designed to be both comprehensive and intuitive, offering a multi-la
 
 ### Prerequisites
 
--   **Python**: Version 3.12 or higher.
+-   **Python**: Version 3.12 or lower (3.8+).
 -   **Rust**: The Rust compiler (`rustc`) and Cargo package manager are required. You can verify your installation by running `cargo --version`.
 
 ### Installation
