@@ -6,15 +6,15 @@ use std::collections::HashSet;
 
 // Main entry point for inter-procedural taint analysis
 pub fn analyze_program_for_taint(call_graph: &CallGraph, ruleset: &RuleSet) -> Vec<Issue> {
-    println!("DEBUG: Starting taint analysis with {} functions", call_graph.functions.len());
-    println!("DEBUG: Taint sources: {}, sinks: {}", ruleset.taint_sources.len(), ruleset.taint_sinks.len());
+    println!("[*] Starting taint analysis with {} functions", call_graph.functions.len());
+    println!("[+] Taint sources: {}, sinks: {}", ruleset.taint_sources.len(), ruleset.taint_sinks.len());
     
     let mut issues = Vec::new();
     let mut tainted_vars: HashSet<(String, String)> = HashSet::new(); // (func_id, var_name)
 
     // First pass: find all initial sources across all functions
     for (func_id, func_node) in &call_graph.functions {
-        println!("DEBUG: Analyzing function: {}", func_id);
+        println!("[*] Analyzing function: {}", func_id);
         let mut assignments = Vec::new();
         find_assignments(func_node, &mut assignments);
         
@@ -22,16 +22,16 @@ pub fn analyze_program_for_taint(call_graph: &CallGraph, ruleset: &RuleSet) -> V
             if let Some(value_node) = assign_node.children.get("value").and_then(|v| v.get(0)) {
                 if value_node.node_type == "Call" {
                     let call_name = get_full_call_name(value_node);
-                    println!("DEBUG: Found call: {}", call_name);
+                    println!("[+] Found call: {}", call_name);
                     
                     for source in &ruleset.taint_sources {
                         if call_name.contains(&source.function_call) || source.function_call.contains(&call_name) {
-                            println!("DEBUG: Found taint source: {} matches {}", call_name, source.function_call);
+                            println!("[+] Found taint source: {} matches {}", call_name, source.function_call);
                             
                             if let Some(targets) = assign_node.children.get("targets") {
                                 for target in targets {
                                     if let Some(name) = get_name_from_node(target) {
-                                        println!("DEBUG: Tainting variable: {} in {}", name, func_id);
+                                        println!("[+] Tainting variable: {} in {}", name, func_id);
                                         tainted_vars.insert((func_id.clone(), name));
                                     }
                                 }
@@ -43,7 +43,7 @@ pub fn analyze_program_for_taint(call_graph: &CallGraph, ruleset: &RuleSet) -> V
         }
     }
 
-    println!("DEBUG: Found {} tainted variables", tainted_vars.len());
+    println!("[+] Found {} tainted variables", tainted_vars.len());
 
     // Second pass: find all sinks and check if arguments are tainted
     for (func_id, func_node) in &call_graph.functions {
@@ -61,16 +61,16 @@ pub fn analyze_program_for_taint(call_graph: &CallGraph, ruleset: &RuleSet) -> V
             
             for sink in &ruleset.taint_sinks {
                 if callee_name.contains(&sink.function_call) || sink.function_call.contains(&callee_name) {
-                    println!("DEBUG: Found potential sink: {} matches {}", callee_name, sink.function_call);
+                    println!("[+] Found potential sink: {} matches {}", callee_name, sink.function_call);
                     
                     if let Some(args) = call_node.children.get("args") {
                         if args.len() > sink.vulnerable_parameter_index {
                             let arg = &args[sink.vulnerable_parameter_index];
                             if let Some(arg_name) = get_name_from_node(arg) {
-                                println!("DEBUG: Checking if argument '{}' is tainted", arg_name);
+                                println!("[*] Checking if argument '{}' is tainted", arg_name);
                                 
                                 if tainted_vars.contains(&(func_id.clone(), arg_name.clone())) {
-                                    println!("DEBUG: VULNERABILITY FOUND! Tainted data flows to sink");
+                                    println!("[!] VULNERABILITY FOUND! Tainted data flows to sink");
                                     report_issue(ruleset, &sink.vulnerability_id, file_path, call_node, content, &mut issues);
                                 }
                             }
@@ -80,8 +80,6 @@ pub fn analyze_program_for_taint(call_graph: &CallGraph, ruleset: &RuleSet) -> V
             }
         }
     }
-    
-    println!("DEBUG: Taint analysis found {} issues", issues.len());
     issues
 }
 

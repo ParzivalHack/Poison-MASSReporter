@@ -1,0 +1,12 @@
+Metadata-Version: 2.4
+Name: pyspector
+Version: 0.1.0b0
+Classifier: Programming Language :: Rust
+Classifier: Programming Language :: Python :: 3
+Requires-Python: >=3.8
+Requires-Dist: click>=8.0
+Requires-Dist: toml>=0.10
+Requires-Dist: sarif-om>=1.0
+Requires-Dist: jinja2>=3.0
+Requires-Dist: textual>=0.60
+Requires-Dist: importlib_resources; python_version < "3.9"

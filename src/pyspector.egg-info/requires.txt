@@ -1,0 +1,8 @@
+click>=8.0
+toml>=0.10
+sarif-om>=1.0
+jinja2>=3.0
+textual>=0.60
+
+[:python_version < "3.9"]
+importlib_resources

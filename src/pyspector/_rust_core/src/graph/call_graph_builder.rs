@@ -13,14 +13,14 @@ pub struct CallGraph<'a> {
 
 // Builds a call graph from all parsed Python files.
 pub fn build_call_graph(py_files: &[PythonFile]) -> CallGraph {
-    println!("DEBUG: Building call graph from {} files", py_files.len());
+    println!("[*] Building call graph from {} files", py_files.len());
     
     let mut call_graph = CallGraph::default();
     let mut all_funcs = HashMap::new();
 
     // First pass: find all function definitions and store their content.
     for file in py_files {
-        println!("DEBUG: Processing file: {}", file.file_path);
+        println!("[*] Processing file: {}", file.file_path);
         
         if let Some(ast) = &file.ast {
             let mut funcs_in_file = Vec::new();
@@ -29,7 +29,7 @@ pub fn build_call_graph(py_files: &[PythonFile]) -> CallGraph {
             for func_node in funcs_in_file {
                 if let Some(func_name) = get_name_from_node(func_node) {
                     let func_id = format!("{}::{}", file.file_path, func_name);
-                    println!("DEBUG: Found function: {}", func_id);
+                    println!("[*] Found function: {}", func_id);
                     all_funcs.insert(func_id, func_node);
                 }
             }
@@ -38,7 +38,7 @@ pub fn build_call_graph(py_files: &[PythonFile]) -> CallGraph {
     }
     
     call_graph.functions = all_funcs;
-    println!("DEBUG: Found {} total functions", call_graph.functions.len());
+    println!("[+] Found {} total functions", call_graph.functions.len());
 
     // Second pass: find all call sites in each function.
     for (func_id, func_node) in &call_graph.functions {
