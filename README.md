@@ -95,7 +95,7 @@ PySpector includes an interactive triage mode to help manage and baseline findin
 
 * **Generate a JSON report:**
 ```bash
-pyspector scan project/main.py
+pyspector scan /path/to/your/project -o report.json -f json
 ```
 
 * **Start the triage TUI:**
