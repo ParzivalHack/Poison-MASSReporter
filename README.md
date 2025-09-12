@@ -31,13 +31,13 @@ The tool is designed to be both comprehensive and intuitive, offering a multi-la
 
 ## Key Features
 
-* * **Multi-Layered Analysis Engine:** PySpector employs a sophisticated, multi-layered approach to detect a broad spectrum of vulnerabilities:
+* **Multi-Layered Analysis Engine:** PySpector employs a sophisticated, multi-layered approach to detect a broad spectrum of vulnerabilities:
 
-* **Regex-Based Pattern Matching:** Scans all files for specific patterns, ideal for identifying hardcoded secrets, insecure configurations in Dockerfiles, and weak settings in framework files.
+* * **Regex-Based Pattern Matching:** Scans all files for specific patterns, ideal for identifying hardcoded secrets, insecure configurations in Dockerfiles, and weak settings in framework files.
 
-* **Abstract Syntax Tree (AST) Analysis:** For Python files, the tool parses the code into an AST to analyze its structure. This enables precise detection of vulnerabilities tied to code constructs, such as the use of eval(), insecure deserialization with pickle, or weak hashing algorithms.
+* * **Abstract Syntax Tree (AST) Analysis:** For Python files, the tool parses the code into an AST to analyze its structure. This enables precise detection of vulnerabilities tied to code constructs, such as the use of eval(), insecure deserialization with pickle, or weak hashing algorithms.
 
-* **Inter-procedural Taint Analysis:** The engine builds a comprehensive call graph of the entire application to perform taint analysis. It tracks the flow of data from input sources (e.g., web requests) to dangerous sinks (e.g., command execution functions), allowing it to identify complex injection vulnerabilities with high accuracy.
+* * **Inter-procedural Taint Analysis:** The engine builds a comprehensive call graph of the entire application to perform taint analysis. It tracks the flow of data from input sources (e.g., web requests) to dangerous sinks (e.g., command execution functions), allowing it to identify complex injection vulnerabilities with high accuracy.
 
 * **Comprehensive and Customizable Ruleset:** PySpector comes with 238 built-in rules that cover common vulnerabilities, including those from the OWASP Top 10. The rules are defined in a simple TOML format, making them easy to understand and extend.
 
