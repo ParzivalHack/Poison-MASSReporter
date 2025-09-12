@@ -90,6 +90,7 @@ pyspector scan --url https://github.com/username/repo.git
 
 ## Triaging and Baselining Findings
 <img width="871" height="950" alt="image" src="https://github.com/user-attachments/assets/5f31c2fc-9216-408e-975f-a1652c6bbdc7" />
+
 PySpector includes an interactive triage mode to help manage and baseline findings. This allows you to review issues and mark them as "ignored" so they don't appear in future scans.
 
 * **Generate a JSON report:**
