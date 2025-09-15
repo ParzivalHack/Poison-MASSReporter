@@ -24,3 +24,8 @@ dependencies = [
 
 [project.scripts]
 pyspector = "pyspector.cli:cli"
+
+[tool.setuptools-rust]
+rust_extensions = [
+    { target = "pyspector._rust_core", path = "src/pyspector/_rust_core/Cargo.toml" }
+]
