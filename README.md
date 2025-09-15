@@ -1,6 +1,6 @@
 # PySpector: An High-Performance Python and Rust SAST Framework
 
-![PySpector's version](https://img.shields.io/badge/PySpector%20version-0.1.0--beta-blue)
+![PySpector's version](https://img.shields.io/badge/PySpector%20version-0.1.1--beta-blue)
 
 PySpector is a static analysis security testing (SAST) Framework engineered for modern Python development workflows. It leverages a powerful Rust core to deliver high-speed, accurate vulnerability scanning, wrapped in a developer-friendly Python CLI. By compiling the analysis engine to a native binary, PySpector avoids the performance overhead of traditional Python-based tools, making it an ideal choice for integration into CI/CD pipelines and local development environments where speed is critical.
 
