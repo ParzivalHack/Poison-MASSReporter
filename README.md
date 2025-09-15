@@ -73,7 +73,7 @@ The primary command is `scan`, which can target a local file, a directory, or ev
 pyspector scan [PATH or --url REPO_URL] [OPTIONS]
 ```
 
-## Examples:
+### Examples:
 
 * **Scan a single file**
 ```bash
@@ -90,7 +90,8 @@ pyspector scan /path/to/your/project -o report.html -f html
 pyspector scan --url https://github.com/username/repo.git
 ```
 
-* **Scan a local directory containing AI Models**
+* **Scan for AI and LLM Vulnerabilities**
+Use the `--ai` flag to enable a specialized ruleset for projects using Large Language Models.
 ```bash
 pyspector scan /path/to/your/project --ai
 ```
