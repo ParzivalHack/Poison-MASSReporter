@@ -1,3 +1,5 @@
+<img width="974" height="1094" alt="image" src="https://github.com/user-attachments/assets/2cc4915f-4f57-4b16-b2f5-0808b47b77f0" />
+
 # PySpector: An High-Performance Python and Rust SAST Framework
 
 [![latest release](https://img.shields.io/badge/latest%20release-v0.1.1--beta-blue)](https://github.com/ParzivalHack/PySpector/releases/tag/v0.1.1-beta)
