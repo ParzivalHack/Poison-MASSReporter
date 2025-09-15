@@ -90,8 +90,10 @@ pyspector scan /path/to/your/project -o report.html -f html
 pyspector scan --url https://github.com/username/repo.git
 ```
 
-* **Scan for AI and LLM Vulnerabilities**
+### Scan for AI and LLM Vulnerabilities
+
 Use the `--ai` flag to enable a specialized ruleset for projects using Large Language Models.
+
 ```bash
 pyspector scan /path/to/your/project --ai
 ```
