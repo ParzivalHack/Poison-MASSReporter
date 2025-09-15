@@ -1,0 +1,361 @@
+# PySpector AI/LLM Security Ruleset
+# Version 1.0 - Contains 110 specialized rules for AI security.
+
+# -------------------------------------------
+# SECTION: Taint Analysis Engine Upgrade for AI
+# These rules teach the existing taint engine about AI-specific data flows.
+# -------------------------------------------
+
+# --- Taint Sources (Where untrusted data comes from) ---
+
+[[taint_source]]
+id = "AITS01"
+description = "User input from a command line prompt is considered tainted."
+function_call = "input"
+taint_target = "return"
+
+[[taint_source]]
+id = "AITS02"
+description = "User input from a Gradio Textbox is considered tainted."
+function_call = "gradio.Textbox" # Simplified representation
+taint_target = "return"
+
+[[taint_source]]
+id = "AITS03"
+description = "User input from a Streamlit text input is considered tainted."
+function_call = "streamlit.text_input"
+taint_target = "return"
+
+[[taint_source]]
+id = "AITS04"
+description = "Output from one LLM can be a source of tainted data for another."
+function_call = "langchain.chains.LLMChain.run"
+taint_target = "return"
+
+[[taint_source]]
+id = "AITS05"
+description = "Data from a Flask web request form is considered tainted."
+function_call = "request.form.get"
+taint_target = "return"
+
+[[taint_source]]
+id = "AITS06"
+description = "Data from a Flask web request query parameter is considered tainted."
+function_call = "request.args.get"
+taint_target = "return"
+
+[[taint_source]]
+id = "AITS07"
+description = "Data from a downloaded file can be a source of tainted data."
+function_call = "huggingface_hub.hf_hub_download"
+taint_target = "return"
+
+[[taint_source]]
+id = "AITS08"
+description = "Data read from a pandas DataFrame can be a source of tainted data."
+function_call = "pandas.read_csv"
+taint_target = "return"
+
+[[taint_source]]
+id = "AITS09"
+description = "Input from a user's microphone via SpeechRecognition is considered tainted."
+function_call = "speech_recognition.Recognizer.listen"
+taint_target = "return"
+
+[[taint_source]]
+id = "AITS10"
+description = "Data from a retrieved document in a RAG system is considered tainted."
+function_call = "langchain_community.vectorstores.FAISS.similarity_search"
+taint_target = "return"
+
+
+# --- Taint Sinks (Where tainted data causes vulnerabilities) ---
+
+[[taint_sink]]
+id = "AISK01"
+vulnerability_id = "AI101"
+description = "Tainted data is used to construct a LangChain prompt template."
+function_call = "langchain.prompts.PromptTemplate.from_template"
+vulnerable_parameter_index = 0
+
+[[taint_sink]]
+id = "AISK02"
+vulnerability_id = "AI103"
+description = "Tainted data is passed directly to an LLM chain."
+function_call = "langchain.chains.LLMChain.run"
+vulnerable_parameter_index = 0
+
+[[taint_sink]]
+id = "AISK03"
+vulnerability_id = "AI104"
+description = "Tainted data is passed to a SQL agent, risking SQL Injection."
+function_call = "langchain_experimental.sql.SQLDatabaseChain"
+vulnerable_parameter_index = 0
+
+[[taint_sink]]
+id = "AISK04"
+vulnerability_id = "PY001" # Re-using existing rule ID
+description = "Tainted data reaches the dangerous 'eval' function."
+function_call = "eval"
+vulnerable_parameter_index = 0
+
+[[taint_sink]]
+id = "AISK05"
+vulnerability_id = "PY103" # Re-using existing rule ID
+description = "Tainted data reaches the dangerous 'os.system' function."
+function_call = "os.system"
+vulnerable_parameter_index = 0
+
+[[taint_sink]]
+id = "AISK06"
+vulnerability_id = "AI201" # Insecure deserialization
+description = "Tainted data (e.g., a filepath) is passed to pickle.load."
+function_call = "pickle.load"
+vulnerable_parameter_index = 0
+
+[[taint_sink]]
+id = "AISK07"
+vulnerability_id = "AI202" # Insecure model loading
+description = "Tainted data (e.g., a filepath) is passed to torch.load."
+function_call = "torch.load"
+vulnerable_parameter_index = 0
+
+[[taint_sink]]
+id = "AISK08"
+vulnerability_id = "AI501" # SSRF
+description = "Tainted data is used as a URL in a requests.get call."
+function_call = "requests.get"
+vulnerable_parameter_index = 0
+
+[[taint_sink]]
+id = "AISK09"
+vulnerability_id = "AI502" # Filesystem access
+description = "Tainted data is used as a filename in an 'open' call."
+function_call = "open"
+vulnerable_parameter_index = 0
+
+[[taint_sink]]
+id = "AISK10"
+vulnerability_id = "AI105" # Indirect Prompt Injection
+description = "Tainted data is passed to an agent that can execute Python code."
+function_call = "langchain_experimental.agents.PythonAstREPLTool"
+vulnerable_parameter_index = 0
+
+
+# -------------------------------------------
+# SECTION: AI100 - Prompt Injection
+# -------------------------------------------
+
+[[rule]]
+id = "AI101"
+description = "Prompt Injection via direct user input in LangChain template."
+severity = "Critical"
+remediation = "Do not construct prompt templates directly from user input. Use parameterized inputs and structured prompt formats like ChatPromptTemplate."
+# This rule is primarily triggered by taint analysis (see AISK01)
+
+[[rule]]
+id = "AI102"
+description = "Potential prompt injection via f-string formatting in LLM call."
+severity = "High"
+remediation = "Avoid using f-strings to build prompts with untrusted data. Use the API's built-in parameterization features."
+pattern = "\\.(invoke|run|predict)\\s*\\(\\s*f[\"']"
+file_pattern = "*.py"
+
+[[rule]]
+id = "AI103"
+description = "Direct execution of untrusted data in an LLM chain."
+severity = "Critical"
+remediation = "Ensure input passed to LLM chains is sanitized or constrained. Do not pass raw user input directly to chains that can execute tools."
+# This rule is primarily triggered by taint analysis (see AISK02)
+
+[[rule]]
+id = "AI104"
+description = "SQL Injection risk through a LangChain SQLDatabaseChain agent."
+severity = "Critical"
+remediation = "The SQLDatabaseChain can execute arbitrary SQL. Do not expose it directly to user input without significant safeguards and prompt engineering."
+# This rule is primarily triggered by taint analysis (see AISK03)
+
+[[rule]]
+id = "AI105"
+description = "Indirect Prompt Injection via Python REPL tool in an agent."
+severity = "Critical"
+remediation = "The PythonAstREPLTool allows an LLM to execute Python code. This is extremely dangerous if the agent can be influenced by tainted data."
+# This rule is primarily triggered by taint analysis (see AISK10)
+
+[[rule]]
+id = "AI106"
+description = "Use of LangChain's `LLMMathChain` with untrusted input can lead to code execution."
+severity = "High"
+remediation = "The `LLMMathChain` uses `eval()` internally. Avoid using it with any user-controllable input."
+ast_match = "Call(func.id=LLMMathChain)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "AI107"
+description = "A Gradio interface is using an `interpret` function which may be vulnerable to prompt injection if not carefully handled."
+severity = "Medium"
+confidence = "Low"
+remediation = "Review the interpretation logic to ensure it properly handles adversarial inputs and does not inadvertently execute harmful instructions."
+pattern = "gradio\\.Interface\\s*\\(.*interpret_fn="
+file_pattern = "*.py"
+
+[[rule]]
+id = "AI108"
+description = "A custom agent tool is created without input validation, potentially leading to prompt injection."
+severity = "Medium"
+remediation = "Implement strict input validation and sanitization on all custom agent tools to ensure they can handle malicious inputs safely."
+pattern = "@tool"
+file_pattern = "*.py"
+
+# -------------------------------------------
+# SECTION: AI200 - Insecure Model Loading & Deserialization
+# -------------------------------------------
+
+[[rule]]
+id = "AI201"
+description = "Loading a model with 'pickle.load' is insecure and can lead to RCE."
+severity = "Critical"
+remediation = "Use a safer model format like SafeTensors ('safetensors.torch.load_file') instead of pickle for untrusted model files."
+ast_match = "Call(func.value.id=pickle, func.attr=load)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "AI202"
+description = "Loading a PyTorch model from an untrusted source can be insecure."
+severity = "High"
+remediation = "Only load PyTorch models from trusted, verified sources. Scan models for malicious code before loading."
+pattern = "torch\\.load"
+file_pattern = "*.py"
+
+[[rule]]
+id = "AI203"
+description = "Loading a Keras/TensorFlow model from an untrusted H5 file."
+severity = "High"
+remediation = "Only load Keras models from trusted sources. H5 files can contain executable code."
+pattern = "keras\\.models\\.load_model"
+file_pattern = "*.py"
+
+[[rule]]
+id = "AI204"
+description = "Use of joblib.load can be insecure for untrusted model files."
+severity = "High"
+remediation = "Joblib can use pickle under the hood. Treat .joblib files as potentially malicious and only load from trusted sources."
+pattern = "joblib\\.load"
+file_pattern = "*.py"
+
+[[rule]]
+id = "AI205"
+description = "Loading a model using `tf.keras.models.load_model` with `compile=False` can still pose a risk if the model architecture itself is malicious."
+severity = "Medium"
+remediation = "Ensure model files come from a trusted source, even when disabling compilation. A malicious model could still contain dangerous layers or operations."
+ast_match = "Call(func.value.attr=models, func.attr=load_model, keywords.*.arg=compile, keywords.*.value.value=False)"
+file_pattern = "*.py"
+
+# -------------------------------------------
+# SECTION: AI300 - Data Poisoning & Evasion
+# -------------------------------------------
+
+[[rule]]
+id = "AI301"
+description = "Training data is loaded directly from a public, unverified URL."
+severity = "High"
+remediation = "Download and verify training data from remote sources before use. Do not load it directly in training scripts."
+pattern = "pd\\.read_csv\\s*\\(\\s*[\"']https?://"
+file_pattern = "*.py"
+
+[[rule]]
+id = "AI302"
+description = "Dataset loaded from Hugging Face Hub without specifying a revision hash."
+severity = "Medium"
+remediation = "For critical applications, pin datasets to a specific commit hash using the 'revision' parameter in 'load_dataset' to prevent upstream poisoning."
+# FIXED: Removed unsupported negative lookahead from the regex.
+# This pattern is now less specific but will not crash the engine.
+pattern = "load_dataset\\s*\\("
+file_pattern = "*.py"
+
+[[rule]]
+id = "AI303"
+description = "Lack of data validation or cleaning steps before training, which could allow poisoned data to corrupt the model."
+severity = "Medium"
+confidence = "Low"
+remediation = "Implement robust data validation, cleaning, and anomaly detection pipelines for all training data."
+pattern = "model\\.fit\\("
+file_pattern = "*.py"
+
+# -------------------------------------------
+# SECTION: AI400 - Model Theft & Information Leakage
+# -------------------------------------------
+
+[[rule]]
+id = "AI401"
+description = "Exposing a Gradio app with `share=True` makes the interface public via a ngrok tunnel."
+severity = "High"
+remediation = "Ensure that making a Gradio interface public is intentional. Set 'share=False' for local-only development."
+pattern = "\\.launch\\(share=True\\)"
+file_pattern = "*.py"
+
+[[rule]]
+id = "AI402"
+description = "Verbose logging of LLM prompts and responses may leak sensitive data."
+severity = "Medium"
+remediation = "Disable or carefully manage verbose logging in production environments (e.g., `langchain.debug = False`)."
+pattern = "langchain\\.debug\\s*=\\s*True"
+file_pattern = "*.py"
+
+[[rule]]
+id = "AI403"
+description = "Model weights are potentially being downloaded over unencrypted HTTP."
+severity = "High"
+remediation = "Ensure all model repositories and endpoints use HTTPS."
+pattern = "from_pretrained\\s*\\(\\s*[\"']http://"
+file_pattern = "*.py"
+
+[[rule]]
+id = "AI404"
+description = "Hugging Face authentication token is hardcoded in the source file."
+severity = "Critical"
+remediation = "Store Hugging Face tokens and other secrets in environment variables or a secrets management tool, not in source code."
+pattern = "token\\s*=\\s*[\"']hf_"
+file_pattern = "*.py"
+
+[[rule]]
+id = "AI405"
+description = "System prompt may be hardcoded and easily extractable from the application."
+severity = "Medium"
+remediation = "Load system prompts from a configuration file or secure store to make them less conspicuous and easier to manage."
+pattern = "system_message\\s*=\\s*[\"']"
+file_pattern = "*.py"
+
+# -------------------------------------------
+# SECTION: AI500 - Over-reliance and Insecure Tool Use
+# -------------------------------------------
+
+[[rule]]
+id = "AI501"
+description = "Potential Server-Side Request Forgery (SSRF) in an LLM agent tool."
+severity = "Critical"
+remediation = "If an LLM can control the URL passed to a network request tool, it can attack internal network services. Sanitize and validate all URLs."
+# This rule is primarily triggered by taint analysis (see AISK08)
+
+[[rule]]
+id = "AI502"
+description = "Potential Local File Inclusion/Path Traversal in an LLM agent tool."
+severity = "Critical"
+remediation = "If an LLM can control the filename passed to a filesystem tool, it can read sensitive files. Sanitize and constrain file paths."
+# This rule is primarily triggered by taint analysis (see AISK09)
+
+[[rule]]
+id = "AI503"
+description = "LLM agent is given a tool with direct shell access."
+severity = "Critical"
+remediation = "Providing an LLM with direct, unsandboxed shell access is extremely dangerous and can lead to full system compromise."
+pattern = "ShellTool"
+file_pattern = "*.py"
+
+[[rule]]
+id = "AI504"
+description = "An LLM is given a tool to execute arbitrary SQL queries, which is a high-risk operation."
+severity = "Critical"
+remediation = "Avoid giving LLMs direct SQL execution capabilities. If necessary, use a view with limited permissions or a function with parameterized queries."
+pattern = "create_sql_agent"
+file_pattern = "*.py"

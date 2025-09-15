@@ -84,7 +84,24 @@ def cli():
     PySpector: A high-performance, security-focused static analysis tool
     for Python, powered by Rust.
     """
-    pass
+    banner = r"""
+  o__ __o                   o__ __o                                         o                             
+ <|     v\                 /v     v\                                       <|>                            
+ / \     <\               />       <\                                      < >                            
+ \o/     o/   o      o   _\o____        \o_ __o      o__  __o       __o__   |        o__ __o    \o__ __o  
+  |__  _<|/  <|>    <|>       \_\__o__   |    v\    /v      |>     />  \    o__/_   /v     v\    |     |> 
+  |          < >    < >             \   / \    <\  />      //    o/         |      />       <\  / \   < > 
+ <o>          \o    o/    \         /   \o/     /  \o    o/     <|          |      \         /  \o/       
+  |            v\  /v      o       o     |     o    v\  /v __o   \\         o       o       o    |        
+ / \            <\/>       <\__ __/>    / \ __/>     <\/> __/>    _\o__</   <\__    <\__ __/>   / \       
+                 /                      \o/                                                               
+                o                        |                                                                
+             __/>                       / \                                                                   
+"""
+    click.echo(click.style(banner))
+    click.echo("Version: 0.1.1-beta\n")
+    click.echo("Made with <3 by github.com/ParzivalHack\n")
+
 cli = cast(click.Group, cli)
 
 @click.command(help="Scan a directory, file, or remote Git repository for vulnerabilities.")
@@ -94,7 +111,8 @@ cli = cast(click.Group, cli)
 @click.option('-o', '--output', 'output_file', type=click.Path(path_type=Path), help="Path to write the report to.")
 @click.option('-f', '--format', 'report_format', type=click.Choice(['console', 'json', 'sarif', 'html']), default='console', help="Format of the report.")
 @click.option('-s', '--severity', 'severity_level', type=click.Choice(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']), default='LOW', help="Minimum severity level to report.")
-def run_scan_command(path: Optional[Path], repo_url: Optional[str], config_path: Optional[Path], output_file: Optional[Path], report_format: str, severity_level: str):
+@click.option('--ai', 'ai_scan', is_flag=True, default=False, help="Enable specialized scanning for AI/LLM vulnerabilities.")
+def run_scan_command(path: Optional[Path], repo_url: Optional[str], config_path: Optional[Path], output_file: Optional[Path], report_format: str, severity_level: str, ai_scan: bool):
     """The main scan command."""
     if not path and not repo_url:
         raise click.UsageError("You must provide either a PATH or a --url to scan.")
@@ -116,7 +134,7 @@ def run_scan_command(path: Optional[Path], repo_url: Optional[str], config_path:
                     text=True
                 )
                 scan_path = Path(temp_dir)
-                _execute_scan(scan_path, config_path, output_file, report_format, severity_level)
+                _execute_scan(scan_path, config_path, output_file, report_format, severity_level, ai_scan)
             except subprocess.CalledProcessError as e:
                 click.echo(click.style(f"Error: Failed to clone repository.\n{e.stderr}", fg="red"))
                 sys.exit(1)
@@ -126,15 +144,15 @@ def run_scan_command(path: Optional[Path], repo_url: Optional[str], config_path:
     else:
         # Handle local path scan
         scan_path = path
-        _execute_scan(scan_path, config_path, output_file, report_format, severity_level)
+        _execute_scan(scan_path, config_path, output_file, report_format, severity_level, ai_scan)
 
 
-def _execute_scan(scan_path: Path, config_path: Optional[Path], output_file: Optional[Path], report_format: str, severity_level: str):
+def _execute_scan(scan_path: Path, config_path: Optional[Path], output_file: Optional[Path], report_format: str, severity_level: str, ai_scan: bool):
     """Helper function to run the actual scan and reporting."""
     start_time = time.time()
     
     config = load_config(config_path)
-    rules_toml_str = get_default_rules()
+    rules_toml_str = get_default_rules(ai_scan)
 
     click.echo(f"[*] Starting PySpector scan on '{scan_path}'...")
     
