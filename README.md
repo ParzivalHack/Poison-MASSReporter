@@ -2,6 +2,8 @@
 
 ![PySpector's version](https://img.shields.io/badge/PySpector%20version-0.1.1--beta-blue)
 
+[![latest release](https://img.shields.io/badge/latest%20release-v0.1.1--beta-blue)](https://github.com/ParzivalHack/PySpector/releases/tag/v0.1.1-beta)
+
 PySpector is a static analysis security testing (SAST) Framework engineered for modern Python development workflows. It leverages a powerful Rust core to deliver high-speed, accurate vulnerability scanning, wrapped in a developer-friendly Python CLI. By compiling the analysis engine to a native binary, PySpector avoids the performance overhead of traditional Python-based tools, making it an ideal choice for integration into CI/CD pipelines and local development environments where speed is critical.
 
 The tool is designed to be both comprehensive and intuitive, offering a multi-layered analysis approach that goes beyond simple pattern matching to understand the structure and data flow of your application.
@@ -88,6 +90,11 @@ pyspector scan /path/to/your/project -o report.html -f html
 * **Scan a public GitHub repository:**
 ```bash
 pyspector scan --url https://github.com/username/repo.git
+```
+
+* **Scan a local directory containing AI Models**
+```bash
+pyspector scan /path/to/your/project --ai
 ```
 
 ## Triaging and Baselining Findings
