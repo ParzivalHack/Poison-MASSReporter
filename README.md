@@ -107,7 +107,9 @@ pyspector scan /path/to/your/project --ai
 ```
 
 ## Triaging and Baselining Findings
-<img width="871" height="950" alt="image" src="https://github.com/user-attachments/assets/5f31c2fc-9216-408e-975f-a1652c6bbdc7" />
+
+<img width="871" height="950" alt="image" src="https://github.com/user-attachments/assets/8ad8e8b9-528a-426f-96e3-c0a66c2c683d" />
+
 
 PySpector includes an interactive triage mode to help manage and baseline findings. This allows you to review issues and mark them as "ignored" so they don't appear in future scans.
 
