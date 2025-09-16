@@ -1,2 +1,9 @@
+# Include the Python rule files
 include src/pyspector/rules/*.toml
-recursive-include src/pyspector/rules *.toml
+
+# Include the Rust project configuration
+include src/pyspector/_rust_core/Cargo.toml
+include src/pyspector/_rust_core/Cargo.lock
+
+# Recursively include all Rust source code
+recursive-include src/pyspector/_rust_core/src *
