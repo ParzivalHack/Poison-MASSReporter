@@ -4,28 +4,3 @@ requires = [
     "setuptools-rust>=1.0"
 ]
 build-backend = "setuptools.build_meta"
-
-[project]
-name = "pyspector"
-version = "0.1.1-beta"
-requires-python = ">=3.8"
-classifiers = [
-    "Programming Language :: Rust",
-    "Programming Language :: Python :: 3",
-]
-dependencies = [
-    "click>=8.0",
-    "toml>=0.10",
-    "sarif-om>=1.0",
-    "jinja2>=3.0",
-    "textual>=0.60",
-    "importlib_resources; python_version < '3.9'",
-]
-
-[project.scripts]
-pyspector = "pyspector.cli:cli"
-
-[tool.setuptools-rust]
-rust_extensions = [
-    { target = "pyspector._rust_core", path = "src/pyspector/_rust_core/Cargo.toml" }
-]
