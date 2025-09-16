@@ -25,11 +25,10 @@ The tool is designed to be both comprehensive and intuitive, offering a multi-la
     source venv/bin/activate
     ```
 In Windows, just download Python 3.12 (suggested) from the Microsoft Store and run:
-
-    ```powershell
+```powershell
     python3.12 -m venv venv
     .\venv\Scripts\Activate.ps1
-    ```
+```
 
 2.  **Install Build Dependencies**: PySpector uses `maturin` to build its Rust core.
     ```bash
