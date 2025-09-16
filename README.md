@@ -24,7 +24,7 @@ The tool is designed to be both comprehensive and intuitive, offering a multi-la
     python3.12 -m venv venv
     source venv/bin/activate
     ```
-In Windows, just download Python 3.12 (suggested) from the Microsoft Store and run:
+* In Windows, just download Python 3.12 (suggested) from the Microsoft Store and run:
 ```powershell
     python3.12 -m venv venv
     .\venv\Scripts\Activate.ps1
