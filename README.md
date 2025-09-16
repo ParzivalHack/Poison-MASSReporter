@@ -103,7 +103,7 @@ pyspector scan --url https://github.com/username/repo.git
 <img width="970" height="1096" alt="image" src="https://github.com/user-attachments/assets/14bac1c0-eae2-4dab-ab40-8047b46bbac8" />
 
 
-* **Use the `--ai` flag to enable a specialized ruleset for projects using Large Language Models:**
+* **Use the `--ai` flag to enable a specialized ruleset, for projects using Large Language Models:**
 
 ```bash
 pyspector scan /path/to/your/project --ai
