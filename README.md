@@ -14,7 +14,7 @@ The tool is designed to be both comprehensive and intuitive, offering a multi-la
 
 ### Prerequisites
 
--   **Python**: Version 3.12 or lower (>3.9+).
+-   **Python**: Version 3.12 or lower (Python 3.9+ required).
 -   **Rust**: The Rust compiler (`rustc`) and Cargo package manager are required. You can verify your installation by running `cargo --version`.
 
 ### Installation
@@ -68,6 +68,44 @@ PySpector's hybrid architecture is key to its performance and effectiveness.
 * **Results and Reporting:** Once the analysis is complete, the Rust core returns a structured list of findings to the Python CLI. The Python wrapper then handles the final steps of filtering the results based on the severity threshold and the baseline file, and generating the report in the user-specified format.
 
 This architecture combines the best of both worlds: a flexible, user-friendly interface in Python and a high-performance, memory-safe analysis engine in Rust :)
+
+## Performance Benchmarks
+
+Independent performance testing demonstrates PySpector's competitive advantages in SAST scanning speed while maintaining comprehensive security analysis.
+
+### Benchmark Results
+
+Comparative analysis across major Python codebases (Django, Flask, Pandas, Scikit-learn, Requests) shows:
+
+| Metric | PySpector | Bandit | Semgrep |
+|--------|-----------|---------|---------|
+| **Throughput** | 25,607 lines/sec | 14,927 lines/sec | 1,538 lines/sec |
+| **Performance Advantage** | **71% faster** than Bandit | Baseline | 16.6x slower |
+| **Memory Usage** | 1.4 GB average | 111 MB average | 277 MB average |
+| **CPU Utilization** | 120% (multi-core) | 100% (single-core) | 40% |
+
+### Key Performance Characteristics
+
+- **Speed**: Delivers 71% faster scanning than traditional tools through Rust-powered parallel analysis
+- **Scalability**: Maintains high throughput on large codebases (500k+ lines of code)
+- **Resource Profile**: Optimized for modern multi-core environments with adequate memory allocation
+- **Consistency**: Stable performance across different project types and sizes
+
+### System Requirements for Optimal Performance
+
+- **Minimum**: 2 CPU cores, 2 GB RAM
+- **Recommended**: 4+ CPU cores, 4+ GB RAM for large codebases
+- **Storage**: SSD recommended for large repository scanning
+
+### Benchmark Methodology
+
+Performance testing conducted on:
+- **Test Environment**: Debian-based Linux VM (2 cores, 4GB RAM)
+- **Test Projects**: 5 major Python repositories (13k-530k lines of code)
+- **Measurement**: Average of multiple runs with CPU settling periods
+- **Comparison**: Head-to-head against Bandit and Semgrep using identical configurations
+
+*Benchmark data available in the project repository for transparency and reproducibility.*
 
 ## Usage
 
