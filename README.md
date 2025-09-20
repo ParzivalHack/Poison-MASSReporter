@@ -78,7 +78,7 @@ Independent performance testing demonstrates PySpector's competitive advantages 
 <img width="4471" height="3529" alt="speed_benchmark_charts" src="https://github.com/user-attachments/assets/9ca0cd7a-82eb-4365-b5c3-94a60eb6d3d9" />
 
 
-Comparative analysis across major Python codebases (Django, Flask, Pandas, Scikit-learn, Requests) shows:
+#### Comparative analysis across major Python codebases (Django, Flask, Pandas, Scikit-learn, Requests) shows:
 
 | Metric | PySpector | Bandit | Semgrep |
 |--------|-----------|---------|---------|
