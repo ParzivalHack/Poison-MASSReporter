@@ -1,6 +1,7 @@
 <div id="header" align="center">
   <img src="https://media.giphy.com/media/YRMb6dd7zprS00JdGZ/giphy.gif" width="100"/>
 </div>
+
 # Contributing to PySpector
 
 First off, thank you for considering contributing to PySpector! We're excited to have you. Every contribution, whether it's a new feature, a bug fix, or a new rule, helps us make Python code, safer for everyone.
