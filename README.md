@@ -91,6 +91,8 @@ Comparative analysis across major Python codebases (Django, Flask, Pandas, Sciki
 - **Resource Profile**: Optimized for modern multi-core environments with adequate memory allocation
 - **Consistency**: Stable performance across different project types and sizes
 
+<img width="4471" height="3529" alt="speed_benchmark_charts" src="https://github.com/user-attachments/assets/7fd8110e-27fe-423f-b134-45a322cf412c" />
+
 ### System Requirements for Optimal Performance
 
 - **Minimum**: 2 CPU cores, 2 GB RAM
